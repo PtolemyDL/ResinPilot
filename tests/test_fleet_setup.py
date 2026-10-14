@@ -44,6 +44,16 @@ def test_discover_matches_library_models(service: WebService) -> None:
     assert not rows["192.0.2.21"]["known_model"]
 
 
+def test_sdcp_skips_filament_printers() -> None:
+    from resinpilot.drivers.sdcp_driver import _is_fdm
+
+    assert _is_fdm("Centauri Carbon")
+    assert _is_fdm("Mystery 1", ["gcode", "3mf"])
+    assert not _is_fdm("Saturn 4 Ultra")
+    assert not _is_fdm("Mystery 2", ["ctb", "goo"])
+    assert not _is_fdm("Mystery 3", [])
+
+
 def test_add_rename_remove(service: WebService) -> None:
     found = service.discover()["printers"]
     res = service.add_printers(found)

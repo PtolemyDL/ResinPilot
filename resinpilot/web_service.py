@@ -456,6 +456,9 @@ class WebService:
         rows = []
         for f in found:
             model = self.catalog.match_model(f.brand, f.model_name, f.driver)
+            check = getattr(get_driver(f.driver), "is_resin", None)
+            if model is None and check is not None and not check(f):
+                continue
             rows.append(
                 {
                     **f.to_dict(),

@@ -25,9 +25,17 @@ ResinPilot talks to printers through **drivers**. It ships with the **SDCP** dri
 | ------ | ------------------------------------------------------------ |
 | ELEGOO | Saturn 4 Ultra 16K, Saturn 4 Ultra, Mars 5 Ultra              |
 
-Other SDCP printers (other ELEGOO Wi-Fi models, some ChiTu-based machines from other brands) are detected and work too. Until their model is in the library they start from generic exposures, borrowed from the library model with the closest pixel size, and then learn from your reports like any other printer. Adding a model is a small YAML entry; see [CONTRIBUTING.md](CONTRIBUTING.md).
+Other SDCP resin printers are detected and work too. These include other network-connected ELEGOO models (e.g. Saturn 3 Ultra, Mars 4 Ultra) and other brands' printers built on a networked ChiTu (CBD) mainboard. SDCP filament printers such as the ELEGOO Centauri Carbon are recognised and left out. Until their model is in the library they start from generic exposures, borrowed from the library model with the closest pixel size, and then learn from your reports like any other printer. Adding a model is a small YAML entry; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Printers that speak another protocol need a driver. Drivers are plain Python classes and can live in separate packages ([how to write one](CONTRIBUTING.md#writing-a-printer-driver)).
+Printers that speak another protocol need a driver. Drivers are plain Python classes and can live in separate packages ([how to write one](CONTRIBUTING.md#writing-a-printer-driver)). Known protocols that don't have a driver yet:
+
+| Printers | How they talk on the network | Driver |
+| -------- | ---------------------------- | ------ |
+| Anycubic Photon Mono M5s / M7 Pro / M7 Max and newer | *LAN Mode*: local MQTT after a signed handshake (see [anycubic-lan](https://pypi.org/project/anycubic-lan/)) | wanted |
+| Older Anycubic Wi-Fi models (Photon Mono X, Mono SQ) | plain-text commands on TCP port 6000 | wanted |
+| Prusa SL1 / SL1S | PrusaLink HTTP API | wanted |
+| Creality HALOT series | WebSocket on port 18188 (HALOT Box), Creality Cloud | wanted |
+| Phrozen, UniFormation, Formlabs and others | no documented local status API (cloud, file share or vendor software only) | — |
 
 ## Install
 
