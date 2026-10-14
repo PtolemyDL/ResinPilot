@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ResinPilot</title>
+  <link rel="icon" href="/assets/branding/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="/assets/branding/favicon.png" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="brand-block">
+        <a class="brand-lockup" href="/">ResinPilot</a>
+        <h1>Resin printer manager</h1>
+      </div>
+      <div class="top-actions">
+        <div class="sub" id="headerSub"></div>
+        <div class="top-btns">
+          <select id="themeSelect" aria-label="Theme" title="Theme">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+          <a class="btn secondary" id="repoLink" href="#" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-row">
+      <nav class="nav seg" id="nav">
+        <span class="seg-pill" aria-hidden="true"></span>
+        <button data-panel="today" class="active">Today</button>
+        <button data-panel="charts">Insights</button>
+        <button data-panel="history">History</button>
+        <button data-panel="printers">Printers</button>
+        <button data-panel="calibrate">Manual</button>
+      </nav>
+    </div>
+
+    <div class="alert-bar" id="alertBar"></div>
+    <div class="status-bar" id="statusBar"></div>
+
+    <!-- Today -->
+    <section class="panel fit active" id="panel-today">
+      <div class="toolbar">
+        <select id="resinSelect" hidden></select>
+        <label for="todayPart">Printing</label>
+        <select id="todayPart"><option value="">Any part</option></select>
+        <select id="todaySize" title="Part size (set automatically when you pick a part)">
+          <option value="">Any size</option>
+          <option value="small">Small (&lt; 300 mm² per layer)</option>
+          <option value="medium">Medium (300–700 mm²)</option>
+          <option value="bulky">Bulky (≥ 700 mm²)</option>
+        </select>
+        <span class="caption room-note" id="roomNote"></span>
+        <button class="btn secondary" id="btnRefresh">Refresh</button>
+      </div>
+      <div id="detectBanner" class="detect" hidden></div>
+      <div id="todayCards"></div>
+    </section>
+
+    <!-- Manual -->
+    <section class="panel fit" id="panel-calibrate">
+      <div class="calibrate-grid">
+        <div class="card calibrate-form">
+          <h2>Manual settings</h2>
+          <div class="caption">Work out Chitubox settings for one printer + resin by hand — Today already applies all of this automatically</div>
+          <div class="cal-hero" id="calHero">
+            <img id="calPrinterPhoto" alt="" hidden />
+            <div>
+              <div class="name" id="calPrinterName">Select a printer</div>
+              <div class="caption" id="calPrinterSpec"></div>
+            </div>
+          </div>
+          <div class="cal-inputs">
+            <div>
+              <label for="calPrinter">Printer</label>
+              <select id="calPrinter"></select>
+            </div>
+            <div>
+              <label for="calResin">Resin</label>
+              <select id="calResin"></select>
+            </div>
+            <div>
+              <label for="calLayer">Layer height (mm)</label>
+              <select id="calLayer">
+                <option value="0.020">0.020</option>
+                <option value="0.025" selected>0.025</option>
+                <option value="0.030">0.030</option>
+                <option value="0.050">0.050</option>
+                <option value="0.100">0.100</option>
+              </select>
+            </div>
+            <div>
+              <label for="calTemp">Room / vat °C</label>
+              <input id="calTemp" type="number" step="0.1" value="25" />
+            </div>
+            <div>
+              <label for="calGeom">Part geometry</label>
+              <select id="calGeom"></select>
+            </div>
+            <div>
+              <label for="calCross">XY cross-section mm²</label>
+              <input id="calCross" type="number" step="1" value="0" />
+            </div>
+            <div>
+              <label for="calPart">Part</label>
+              <select id="calPart"><option value="">Any / new part</option></select>
+            </div>
+            <div>
+              <label for="calSize">Part size</label>
+              <select id="calSize">
+                <option value="">Not set</option>
+                <option value="small">Small (&lt; 300 mm² per layer)</option>
+                <option value="medium">Medium (300–700 mm²)</option>
+                <option value="bulky">Bulky (≥ 700 mm²)</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn" id="btnRecommend" style="margin-top:14px;width:100%">Recommend</button>
+          <div class="cal-actions">
+            <button class="btn secondary" id="btnCopySettings">Copy settings</button>
+            <button class="btn green" id="btnCalSuccess">Report success</button>
+            <button class="btn red" id="btnCalFail">Report fail</button>
+          </div>
+        </div>
+        <div class="card calibrate-result">
+          <h2>Profile</h2>
+          <div class="caption" id="calConfidence">Run Recommend to see exposures</div>
+          <div class="cal-resin-row">
+            <img id="calResinPhoto" alt="" hidden />
+            <div id="calResinName" class="caption"></div>
+          </div>
+          <div class="cal-metrics" id="calMetrics">
+            <div class="kpi"><div class="label">Layer exposure</div><div class="value blue" id="calNormal">—</div></div>
+            <div class="kpi"><div class="label">Bottom exposure</div><div class="value orange" id="calBottom">—</div></div>
+          </div>
+          <div class="caption" id="calPartDetail"></div>
+          <div class="caption" id="calBottomDetail"></div>
+          <div class="cal-fields" id="calFields"></div>
+          <div class="caption" id="calWarnings"></div>
+          <pre class="cal-clipboard" id="calClipboard" hidden></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Printers -->
+    <section class="panel fit" id="panel-printers">
+      <div class="printers-grid">
+        <div class="card">
+          <h2>Your printers</h2>
+          <div class="caption">Printers ResinPilot watches and makes profiles for</div>
+          <div id="fleetList"></div>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <h2>Find printers</h2>
+            <button class="btn" id="btnSearchPrinters">Search network</button>
+          </div>
+          <div class="caption">Finds network-connected resin printers (SDCP: ELEGOO Mars/Saturn and other ChiTu-board printers) on the same network as this computer</div>
+          <div class="add-ip">
+            <input id="addIp" placeholder="Printer IP address, e.g. 192.168.1.50" />
+            <button class="btn secondary" id="btnAddByIp">Add by IP</button>
+          </div>
+          <div id="foundList"></div>
+        </div>
+        <div class="card">
+          <h2>Settings</h2>
+          <div class="settings-form" id="settingsForm"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Insights -->
+    <section class="panel" id="panel-charts">
+      <div class="toolbar">
+        <label for="chartPrinter">Printer</label>
+        <select id="chartPrinter"></select>
+        <label for="chartResinFilter">Resin</label>
+        <select id="chartResinFilter"><option value="">All resins</option></select>
+        <button class="btn secondary" id="btnChartRefresh">Refresh</button>
+      </div>
+      <div class="card">
+        <h2>Fleet comparison</h2>
+        <div class="caption">All printers side by side · per-week figures cover the last 4 weeks · typical settings are medians at each printer's most-used layer height</div>
+        <div style="overflow:auto">
+          <table class="data" id="fleetTable"><thead></thead><tbody></tbody></table>
+        </div>
+        <div class="chart-box"><canvas id="chartFleetWeekly"></canvas></div>
+      </div>
+      <div class="kpis" id="chartKpis">
+        <div class="kpi"><div class="label">Runs</div><div class="value" id="ckRuns">0</div></div>
+        <div class="kpi"><div class="label">Success</div><div class="value green" id="ckRate">0%</div></div>
+        <div class="kpi"><div class="label">Prints / week</div><div class="value blue" id="ckPerWeek">—</div></div>
+        <div class="kpi"><div class="label">Print hours / week</div><div class="value blue" id="ckHours">—</div></div>
+        <div class="kpi"><div class="label">Avg print time</div><div class="value orange" id="ckTime">—</div></div>
+        <div class="kpi" id="ckTempKpi"><div class="label">Avg measured temp</div><div class="value" id="ckTemp">—</div></div>
+      </div>
+      <div class="card">
+        <h2>Insights & summary</h2>
+        <div class="caption">What the logged runs suggest for this printer</div>
+        <div class="insights" id="insights">Loading…</div>
+      </div>
+      <div class="card">
+        <h2>Settings timeline</h2>
+        <div class="caption">Layer exposure (left axis) and bottom exposure (right axis) for every print · red points are fails · hover for the file and failure reason</div>
+        <div class="chart-box tall"><canvas id="chartTimeline"></canvas></div>
+      </div>
+      <div class="chart-grid">
+        <div class="card">
+          <h2>Recipe map</h2>
+          <div class="caption" id="recipeCaption">Bubble size = number of runs at that layer height and exposure · stars = today's recommendation</div>
+          <div class="chart-box"><canvas id="chartRecipes"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Bottom exposure distribution</h2>
+          <div class="caption" id="bottomCaption">Runs per 5 s bottom exposure bucket, split by outcome</div>
+          <div class="chart-box"><canvas id="chartBottom"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Usage per week</h2>
+          <div class="caption">Prints (bars) and print hours (line) per calendar week</div>
+          <div class="chart-box"><canvas id="chartWeekly"></canvas></div>
+        </div>
+        <div class="card">
+          <h2>Failure breakdown</h2>
+          <div class="caption">Why prints failed, from the Report dialog</div>
+          <div class="chart-box"><canvas id="chartFailures"></canvas></div>
+          <div class="empty-note" id="failuresEmpty" hidden>No failed prints logged for this printer.</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h2>Parts</h2>
+          <button class="btn secondary sm" id="btnShapeScan" type="button" hidden>Scan printer files now</button>
+        </div>
+        <div class="caption">Prints grouped by part (from file names; versions of the same model share a part) · size from resin volume ÷ print height · shape from the sliced file's layers (files still on the printers are scanned automatically) · Rename to fix a name, or give two parts the same name to merge them</div>
+        <div class="caption" id="shapeScanStatus"></div>
+        <div style="overflow:auto">
+          <table class="data" id="partsTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Run details</h2>
+        <div class="caption">Filename, temps, duration, layers, notes</div>
+        <div style="overflow:auto">
+          <table class="data" id="chartTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="panel" id="panel-history">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h2>History log</h2>
+          <button class="btn secondary" id="btnImportPrinters">Import printer history</button>
+        </div>
+        <div class="caption" id="histStats"></div>
+        <div class="hist-filters" id="histFilters">
+          <input type="search" id="hfSearch" placeholder="Search file, part, notes…" />
+          <select id="hfPrinter"><option value="">All printers</option></select>
+          <select id="hfStatus">
+            <option value="">All statuses</option>
+            <option value="SUCCESS">Success</option>
+            <option value="FAIL">Fail</option>
+            <option value="UNREPORTED">Unreported</option>
+            <option value="PRINTING">Printing</option>
+          </select>
+          <select id="hfPart"><option value="">All parts</option></select>
+          <select id="hfSize">
+            <option value="">All sizes</option>
+            <option value="small">Small</option>
+            <option value="medium">Medium</option>
+            <option value="bulky">Bulky</option>
+          </select>
+          <select id="hfResin"><option value="">All resins</option></select>
+          <select id="hfLayer"><option value="">All layer heights</option></select>
+          <label>Layer exposure
+            <input type="number" id="hfExpMin" step="0.1" min="0" placeholder="min" />–<input
+              type="number" id="hfExpMax" step="0.1" min="0" placeholder="max" /> s</label>
+          <label>From <input type="date" id="hfFrom" /></label>
+          <label>To <input type="date" id="hfTo" /></label>
+          <button class="btn secondary sm" id="hfClear" type="button">Clear</button>
+        </div>
+        <div class="hist-scroll" id="histScroll">
+          <table class="data" id="histTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="reportModal">
+    <div class="modal">
+      <h3 id="reportTitle">Report outcome</h3>
+      <div class="caption" id="reportSummary"></div>
+      <img id="reportPreview" class="report-preview" alt="" hidden />
+      <label style="font-size:12px;color:var(--muted)">Resin used</label>
+      <select id="reportResin"></select>
+      <label style="font-size:12px;color:var(--muted)">Part application</label>
+      <select id="reportApp">
+        <option value="">—</option>
+        <option value="mechanical">mechanical</option>
+        <option value="miniature">miniature</option>
+        <option value="prototype">prototype</option>
+        <option value="dental">dental</option>
+        <option value="jewelry">jewelry</option>
+        <option value="microfluidics">microfluidics</option>
+        <option value="other">other</option>
+      </select>
+      <div id="reportSettingsWrap" hidden>
+        <label style="font-size:12px;color:var(--muted)">Print settings (fix wrong values)</label>
+        <div class="settings-grid" id="reportSettings"></div>
+      </div>
+      <label style="font-size:12px;color:var(--muted)">Quality check (missing features ↑ layer exposure · dimensions off ↓)</label>
+      <div class="quality-checks" id="reportChecks"></div>
+      <label style="font-size:12px;color:var(--muted)">Failure type (tunes exposure for this part and printer)</label>
+      <select id="reportIssue">
+        <option value="">—</option>
+        <optgroup label="Plate → bottom exposure">
+          <option value="no_adhesion">Didn't stick to plate (stuck on film) — bottom ↑</option>
+          <option value="detached">Came off the plate mid-print — bottom ↑</option>
+          <option value="over_cure">Over-cured base (elephant foot / hard to remove) — bottom ↓</option>
+        </optgroup>
+        <optgroup label="Part → layer exposure">
+          <option value="layer_separation">Layers split / delaminated mid-print — layer ↑</option>
+          <option value="supports_failed">Supports broke / part dropped off its supports — layer ↑</option>
+          <option value="features_closed">Channels or holes closed up / details blurred — layer ↓</option>
+        </optgroup>
+        <option value="other">Other (resin, slicing, machine, …) — no change</option>
+      </select>
+      <label style="font-size:12px;color:var(--muted)">Extra notes (optional)</label>
+      <textarea id="reportNotes" class="notes-small" placeholder="Anything the checklist doesn't cover…"></textarea>
+      <div class="row">
+        <button class="btn green" id="reportOk">Success</button>
+        <button class="btn red" id="reportFail">Fail</button>
+        <button class="btn secondary" id="reportCancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

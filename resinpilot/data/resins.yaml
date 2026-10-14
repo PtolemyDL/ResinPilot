@@ -1,0 +1,141 @@
+resins:
+- id: elegoo_8k_standard_space_grey
+  name: ELEGOO 8K Standard Resin Space Grey
+  brand: ELEGOO
+  color: Space Grey
+  material_family: standard-8k
+  density: 1.1
+  min_normal_exposure: 1.5
+  min_bottom_exposure: 35.0
+  photo: assets/resins/elegoo_8k_standard_space_grey.png
+  swatch: '#6B7280'
+  notes: High-detail 8K standard resin. Low odor, low shrinkage, good fluidity for Ultras.
+  typical_uses: Miniatures, mechanical detail, general production
+  store_url: https://us.elegoo.com/products/elegoo-8k-standard-resin
+  amazon_url: https://www.amazon.ca/s?k=ELEGOO+8K+Standard+Resin+Space+Grey
+- id: elegoo_8k_standard_red_clay
+  name: ELEGOO 8K Standard Resin Red Clay
+  brand: ELEGOO
+  color: Red Clay
+  material_family: standard-8k
+  density: 1.1
+  min_normal_exposure: 1.5
+  min_bottom_exposure: 35.0
+  photo: assets/resins/elegoo_8k_standard_red_clay.png
+  swatch: '#B85C38'
+  notes: Same 8K standard family as Space Grey — warm terracotta tone for visible parts.
+  typical_uses: Display parts, prototypes with warm tone
+  store_url: https://us.elegoo.com/products/elegoo-8k-standard-resin
+  amazon_url: https://www.amazon.ca/s?k=ELEGOO+8K+Standard+Resin+Red+Clay
+- id: elegoo_abs_like_3_black
+  name: ELEGOO ABS-like 3.0 Black
+  brand: ELEGOO
+  color: Black
+  material_family: abs-like
+  density: 1.1
+  min_normal_exposure: 1.8
+  min_bottom_exposure: 35.0
+  photo: assets/resins/elegoo_abs_like_3_black.png
+  swatch: '#1C1C1E'
+  notes: Tougher than standard; better impact resistance. Often needs slightly longer exposure.
+  typical_uses: Functional parts, snap fits, enclosures
+  store_url: https://us.elegoo.com/products/elegoo-8k-abs-like-resin-v-3-0
+  amazon_url: https://www.amazon.ca/s?k=ELEGOO+ABS-like+3.0+Black+Resin
+- id: elegoo_abs_like_3_translucent
+  name: ELEGOO ABS-like 3.0 Translucent
+  brand: ELEGOO
+  color: Translucent
+  material_family: abs-like
+  density: 1.1
+  min_normal_exposure: 1.5
+  min_bottom_exposure: 35.0
+  photo: assets/resins/elegoo_abs_like_3_translucent.png
+  swatch: '#C5D0D8'
+  notes: ABS-like strength with see-through look. Clear/translucent resins usually need more UV time.
+  typical_uses: Light pipes, inspection windows, translucent housings
+  store_url: https://us.elegoo.com/products/elegoo-8k-abs-like-resin-v-3-0
+  amazon_url: https://www.amazon.ca/s?k=ELEGOO+ABS-like+3.0+Translucent+Resin
+- id: anycubic_high_clear
+  name: Anycubic High Clear Resin
+  brand: Anycubic
+  color: High Clear
+  material_family: clear
+  density: 1.1
+  min_normal_exposure: 2.0
+  min_bottom_exposure: 35.0
+  photo: assets/resins/anycubic_high_clear.png
+  swatch: '#A8D5E5'
+  notes: Optimized for optical clarity. Expect longer exposures and careful post-cure for glass-like finish.
+  typical_uses: Lenses, fluid viewers, showpieces
+  store_url: https://store.anycubic.com/products/high-clear-resin
+  amazon_url: https://www.amazon.ca/s?k=Anycubic+High+Clear+Resin
+- id: anycubic_clear
+  name: Anycubic Clear Resin
+  brand: Anycubic
+  color: Clear
+  material_family: clear
+  density: 1.1
+  min_normal_exposure: 1.8
+  min_bottom_exposure: 35.0
+  photo: assets/resins/anycubic_clear.png
+  swatch: '#7EC8D8'
+  notes: General clear resin. Longer cure than pigmented standards; watch for under-cure bloom.
+  typical_uses: Transparent prototypes, fluid channels
+  store_url: https://store.anycubic.com/products/colored-uv-resin
+  amazon_url: https://www.amazon.ca/s?k=Anycubic+Clear+Resin+1kg
+- id: anycubic_white
+  name: Anycubic White Resin
+  brand: Anycubic
+  color: White
+  material_family: standard
+  density: 1.1
+  min_normal_exposure: 1.6
+  min_bottom_exposure: 35.0
+  photo: assets/resins/anycubic_white.png
+  swatch: '#F2F2F7'
+  notes: Bright white pigmented standard. Good for visual prototypes and painting undercoats.
+  typical_uses: Concept models, paint-ready parts
+  store_url: https://store.anycubic.com/products/colored-uv-resin
+  amazon_url: https://www.amazon.ca/s?k=Anycubic+White+Resin+1kg
+- id: siraya_sculpt_ultrawhite
+  name: Siraya Tech Sculpt Ultrawhite
+  brand: Siraya Tech
+  color: Ultrawhite
+  material_family: sculpt
+  density: 1.12
+  min_normal_exposure: 2.0
+  min_bottom_exposure: 35.0
+  photo: assets/resins/siraya_sculpt_ultrawhite.png
+  swatch: '#FAFAFA'
+  notes: Sculpt line — fine surface for figures. Often slower / more exposure than ELEGOO standards.
+  typical_uses: Figures, busts, gallery display
+  store_url: https://siraya.tech/products/siraya-tech-sculpt-high-temperature-resistant-resin-buy-in-bulk
+  amazon_url: https://www.amazon.ca/s?k=Siraya+Tech+Sculpt+Ultrawhite
+- id: siraya_sculpt_grey
+  name: Siraya Tech Sculpt Grey
+  brand: Siraya Tech
+  color: Grey
+  material_family: sculpt
+  density: 1.12
+  min_normal_exposure: 2.0
+  min_bottom_exposure: 35.0
+  photo: assets/resins/siraya_sculpt_grey.png
+  swatch: '#9CA3AF'
+  notes: Neutral grey Sculpt resin — excellent for photography and surface detail reading.
+  typical_uses: Sculptures, miniatures, photography masters
+  store_url: https://siraya.tech/products/siraya-tech-sculpt-high-temperature-resistant-resin-buy-in-bulk
+  amazon_url: https://www.amazon.ca/s?k=Siraya+Tech+Sculpt+Grey
+- id: superflex
+  name: Superflex 3D Printer Resin
+  brand: 3DMaterials
+  color: Natural / Flex
+  material_family: flexible
+  density: 1.05
+  min_normal_exposure: 2.5
+  min_bottom_exposure: 35.0
+  photo: assets/resins/superflex.png
+  swatch: '#E8D5A3'
+  notes: Flexible / elastomer-class resin (Shore 80A). Needs longer exposure and careful support strategy.
+  typical_uses: Gaskets, soft-touch grips, flexible hinges
+  store_url: ''
+  amazon_url: https://www.amazon.ca/s?k=Superflex+3D+Printer+Resin+3DMaterials

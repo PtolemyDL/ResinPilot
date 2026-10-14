@@ -1,0 +1,92 @@
+# Built-in printer models. Your own printers live in fleet.yaml in the ResinPilot user folder.
+models:
+- id: elegoo_saturn_4_ultra_16k
+  brand: ELEGOO
+  name: Saturn 4 Ultra 16K
+  driver: sdcp
+  match_names:
+  - Saturn 4 Ultra 16K
+  machine_type: ELEGOO Saturn 4 Ultra 16K
+  machine_width: 211.68
+  machine_depth: 118.37
+  machine_height: 220.0
+  resolution_x: 15120
+  resolution_y: 6230
+  project_type: LCD_mirror
+  photo: assets/printers/elegoo_saturn_4_ultra_16k.png
+  specs:
+  - 16K mono LCD · 15120 × 6230
+  - Build volume 211.68 × 118.37 × 220 mm
+  - Tilt release · Fast/Slow on device
+  motion:
+    bottom_layer_lift_height: 0.0
+    bottom_layer_lift_speed: 0.0
+    normal_layer_lift_height: 0.0
+    normal_layer_lift_speed: 0.0
+    normal_drop_speed: 0.0
+    rest_time_after_retract: 1.2
+    rest_time_before_lift: 0.0
+    rest_time_after_lift: 0.0
+    bottom_rest_time_after_retract: 1.2
+    bottom_rest_time_before_lift: 0.0
+    bottom_rest_time_after_lift: 0.0
+- id: elegoo_saturn_4_ultra
+  brand: ELEGOO
+  name: Saturn 4 Ultra
+  driver: sdcp
+  match_names:
+  - Saturn 4 Ultra
+  machine_type: ELEGOO Saturn 4 Ultra
+  machine_width: 218.88
+  machine_depth: 122.88
+  machine_height: 220.0
+  resolution_x: 11520
+  resolution_y: 5120
+  project_type: LCD_mirror
+  photo: assets/printers/elegoo_saturn_4_ultra.png
+  specs:
+  - 12K mono LCD · 11520 × 5120
+  - Build volume 218.88 × 122.88 × 220 mm
+  - Tilt release · dual Z rails · Fast/Slow on device
+  motion:
+    bottom_layer_lift_height: 0.0
+    bottom_layer_lift_speed: 0.0
+    normal_layer_lift_height: 0.0
+    normal_layer_lift_speed: 0.0
+    normal_drop_speed: 0.0
+    rest_time_after_retract: 1.2
+    rest_time_before_lift: 0.0
+    rest_time_after_lift: 0.0
+    bottom_rest_time_after_retract: 1.2
+    bottom_rest_time_before_lift: 0.0
+    bottom_rest_time_after_lift: 0.0
+- id: elegoo_mars_5_ultra
+  brand: ELEGOO
+  name: Mars 5 Ultra
+  driver: sdcp
+  match_names:
+  - Mars 5 Ultra
+  machine_type: ELEGOO Mars 5 Ultra
+  machine_width: 153.96
+  machine_depth: 77.4
+  machine_height: 165.0
+  resolution_x: 9024
+  resolution_y: 5120
+  project_type: LCD_mirror
+  photo: assets/printers/elegoo_mars_5_ultra.png
+  specs:
+  - 9K mono LCD · 9024 × 5120
+  - Build volume 153.96 × 77.4 × 165 mm
+  - Tilt release · Fast/Slow on device
+  motion:
+    bottom_layer_lift_height: 0.0
+    bottom_layer_lift_speed: 0.0
+    normal_layer_lift_height: 0.0
+    normal_layer_lift_speed: 0.0
+    normal_drop_speed: 0.0
+    rest_time_after_retract: 1.2
+    rest_time_before_lift: 0.0
+    rest_time_after_lift: 0.0
+    bottom_rest_time_after_retract: 1.2
+    bottom_rest_time_before_lift: 0.0
+    bottom_rest_time_after_lift: 0.0

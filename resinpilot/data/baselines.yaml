@@ -1,0 +1,302 @@
+# Starting exposures per printer model, resin and layer height (from the resin makers' charts).
+baselines:
+- model_id: elegoo_saturn_4_ultra
+  resin_id: elegoo_8k_standard_space_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 28
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (Saturn 4 Ultra 2.5–3 / 25–30).
+- model_id: elegoo_mars_5_ultra
+  resin_id: elegoo_8k_standard_space_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (Mars 5 Ultra 2.5–3 / 27–32).
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: elegoo_8k_standard_space_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.6
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (Saturn 4 Ultra 16K 2.3–2.8 / 25–35).
+- model_id: elegoo_saturn_4_ultra
+  resin_id: elegoo_8k_standard_red_clay
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 28
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (same family as Space Grey).
+- model_id: elegoo_mars_5_ultra
+  resin_id: elegoo_8k_standard_red_clay
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (same family as Space Grey).
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: elegoo_8k_standard_red_clay
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.6
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO 8K Standard midpoint (same family as Space Grey).
+- model_id: elegoo_saturn_4_ultra
+  resin_id: elegoo_abs_like_3_black
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.0
+  bottom_exposure_time: 32
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Saturn 4 Ultra 2.8–3.2 / 30–35).
+- model_id: elegoo_mars_5_ultra
+  resin_id: elegoo_abs_like_3_black
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Mars 5 Ultra 2.5–3 / 27–32).
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: elegoo_abs_like_3_black
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Saturn 4 Ultra 16K 2.5–3 / 25–35).
+- model_id: elegoo_saturn_4_ultra
+  resin_id: elegoo_abs_like_3_translucent
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.0
+  bottom_exposure_time: 32
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Saturn 4 Ultra 2.8–3.2 / 30–35).
+- model_id: elegoo_mars_5_ultra
+  resin_id: elegoo_abs_like_3_translucent
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Mars 5 Ultra 2.5–3 / 27–32).
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: elegoo_abs_like_3_translucent
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.8
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official ELEGOO ABS-Like 3.0 midpoint (Saturn 4 Ultra 16K 2.5–3 / 25–35).
+- model_id: elegoo_saturn_4_ultra
+  resin_id: anycubic_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 28
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard Clear manufacturer baseline adapted for ELEGOO Ultra class.
+- model_id: elegoo_mars_5_ultra
+  resin_id: anycubic_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard Clear manufacturer baseline adapted for ELEGOO Ultra class.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: anycubic_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.3
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard Clear manufacturer baseline adapted for ELEGOO Ultra 16K.
+- model_id: elegoo_saturn_4_ultra
+  resin_id: anycubic_high_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 4.0
+  bottom_exposure_time: 32
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official Anycubic High Clear (~4s / 30–35s) on ELEGOO Ultra.
+- model_id: elegoo_mars_5_ultra
+  resin_id: anycubic_high_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 4.0
+  bottom_exposure_time: 35
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official Anycubic High Clear (~4s / 35s Mono M7 class) on ELEGOO Ultra.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: anycubic_high_clear
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.8
+  bottom_exposure_time: 35
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Official Anycubic High Clear adapted for Saturn 4 Ultra 16K.
+- model_id: elegoo_saturn_4_ultra
+  resin_id: anycubic_white
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 28
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard White manufacturer baseline adapted for ELEGOO Ultra class.
+- model_id: elegoo_mars_5_ultra
+  resin_id: anycubic_white
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard White manufacturer baseline adapted for ELEGOO Ultra class.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: anycubic_white
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.3
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Anycubic Standard White manufacturer baseline adapted for ELEGOO Ultra 16K.
+- model_id: elegoo_saturn_4_ultra
+  resin_id: siraya_sculpt_ultrawhite
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Ultrawhite official guide mapped to Saturn 4 Ultra.
+- model_id: elegoo_mars_5_ultra
+  resin_id: siraya_sculpt_ultrawhite
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Ultrawhite official guide (Mono X/Mars 2 2.25/30) mapped to Ultra.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: siraya_sculpt_ultrawhite
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.3
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Ultrawhite official guide mapped to Saturn 4 Ultra 16K.
+- model_id: elegoo_saturn_4_ultra
+  resin_id: siraya_sculpt_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Grey manufacturer starting point on Saturn 4 Ultra.
+- model_id: elegoo_mars_5_ultra
+  resin_id: siraya_sculpt_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.5
+  bottom_exposure_time: 32
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Grey manufacturer starting point on ELEGOO Ultra class.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: siraya_sculpt_grey
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 2.4
+  bottom_exposure_time: 30
+  bottom_layer_count: 5
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: Siraya Tech Sculpt Grey manufacturer starting point on Saturn 4 Ultra 16K.
+- model_id: elegoo_saturn_4_ultra
+  resin_id: superflex
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.5
+  bottom_exposure_time: 40
+  bottom_layer_count: 6
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: 3DMaterials Superflex (Shore 80A) manufacturer-style starting point — calibrate carefully.
+- model_id: elegoo_mars_5_ultra
+  resin_id: superflex
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.5
+  bottom_exposure_time: 40
+  bottom_layer_count: 6
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: 3DMaterials Superflex (Shore 80A) manufacturer-style starting point — calibrate carefully.
+- model_id: elegoo_saturn_4_ultra_16k
+  resin_id: superflex
+  layer_height: 0.05
+  vat_temperature_c: 25
+  normal_exposure_time: 3.2
+  bottom_exposure_time: 40
+  bottom_layer_count: 6
+  transition_layer_count: 5
+  rest_time_after_retract: 1.2
+  notes: 3DMaterials Superflex (Shore 80A) starting point for Saturn 4 Ultra 16K.
