@@ -89,12 +89,13 @@ resinpilot
 ### Options
 
 ```text
-resinpilot [--port 8787] [--lan] [--no-browser]
+resinpilot [--port 8787] [--lan] [--tab] [--no-browser]
 
   --lan         let phones and other computers on your network open the app
                 (otherwise only this computer can)
-  --port        web port (default 8787)
-  --no-browser  don't open the browser
+  --port        web port (default 8787, or the next free one)
+  --tab         open in a normal browser tab instead of an app window
+  --no-browser  don't open anything
 ```
 
 ResinPilot has no login. Only use `--lan` on a network you trust.
