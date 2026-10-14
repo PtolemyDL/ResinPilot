@@ -376,18 +376,25 @@ def discover_printers(timeout_s: float = 2.0, target: str = "255.255.255.255") -
             except json.JSONDecodeError:
                 continue
             body = payload.get("Data") or payload
+            # Protocol V1 (older printers) nests the fields under Attributes.
+            if isinstance(body.get("Attributes"), dict):
+                body = {**body, **body["Attributes"]}
             ip = str(body.get("MainboardIP") or body.get("ip") or "")
             mid = str(body.get("MainboardID") or body.get("id") or "")
             if not ip:
                 continue
+            machine = str(body.get("MachineName") or "")
+            brand = str(body.get("BrandName") or "")
+            if not brand and machine.upper().startswith("ELEGOO "):
+                brand, machine = "ELEGOO", machine[len("ELEGOO "):]
             found[ip] = DiscoveredPrinter(
-                name=str(body.get("Name") or body.get("MachineName") or "Resin printer"),
+                name=str(body.get("Name") or machine or "Resin printer"),
                 ip=ip,
                 mainboard_id=mid,
                 protocol_version=str(body.get("ProtocolVersion") or ""),
                 firmware_version=str(body.get("FirmwareVersion") or ""),
-                machine_name=str(body.get("MachineName") or ""),
-                brand=str(body.get("BrandName") or ""),
+                machine_name=machine,
+                brand=brand,
             )
     finally:
         sock.close()

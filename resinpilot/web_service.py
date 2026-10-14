@@ -456,8 +456,9 @@ class WebService:
         rows = []
         for f in found:
             model = self.catalog.match_model(f.brand, f.model_name, f.driver)
+            unsupported = str(f.details.get("unsupported") or "")
             check = getattr(get_driver(f.driver), "is_resin", None)
-            if model is None and check is not None and not check(f):
+            if model is None and not unsupported and check is not None and not check(f):
                 continue
             rows.append(
                 {
@@ -467,6 +468,7 @@ class WebService:
                     "known_model": model is not None,
                     "photo": asset_url(model.photo) if model else "",
                     "added": (f.driver, f.device_id or f.host) in known,
+                    "unsupported": unsupported,
                 }
             )
         return {"printers": rows, "errors": errors, "drivers": [d.label for d in drivers().values()]}
@@ -491,6 +493,8 @@ class WebService:
             )
             if not found.host:
                 raise ValueError("Printer address missing")
+            if (pick.get("details") or {}).get("unsupported") or pick.get("unsupported"):
+                continue
             if (found.driver, found.device_id or found.host) in have:
                 continue
             model = self.catalog.match_model(found.brand, found.model_name, found.driver)

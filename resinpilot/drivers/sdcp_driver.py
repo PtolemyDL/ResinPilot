@@ -36,8 +36,13 @@ class SdcpDriver:
                 brand=p.brand,
                 firmware=p.firmware_version,
             )
-            if not _is_fdm(printer.model_name):
-                out.append(printer)
+            if _is_fdm(printer.model_name):
+                continue
+            if p.protocol_version.upper().startswith("V1"):
+                printer.details["unsupported"] = (
+                    "Older SDCP over MQTT (protocol V1) — not supported yet; see the README"
+                )
+            out.append(printer)
         return out
 
     def describe(self, printer: FoundPrinter) -> dict[str, Any]:

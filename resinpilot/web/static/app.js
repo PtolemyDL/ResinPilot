@@ -583,20 +583,24 @@ function renderFound(target = "") {
     errors +
     rows
       .map(
-        (f, i) => `<label class="found-row ${f.added ? "added" : ""}">
-          <input type="checkbox" data-found="${i}" ${f.added ? "disabled" : "checked"} />
+        (f, i) => `<label class="found-row ${f.added || f.unsupported ? "added" : ""}" title="${esc(f.unsupported || "")}">
+          <input type="checkbox" data-found="${i}" ${f.added || f.unsupported ? "disabled" : "checked"} />
           <div class="st-photo">${f.photo ? `<img src="${esc(photoSrc(f.photo))}" alt="" />` : ""}</div>
           <div class="fr-main">
-            <input class="found-name" data-found-name="${i}" value="${esc(f.name || f.model_name)}" ${f.added ? "disabled" : ""} />
+            <input class="found-name" data-found-name="${i}" value="${esc(f.name || f.model_name)}" ${f.added || f.unsupported ? "disabled" : ""} />
             <div class="caption">${esc(f.model_label)} · ${esc(f.host)}${f.firmware ? ` · firmware ${esc(f.firmware)}` : ""}${
-              f.known_model ? "" : " · not in the model library yet — added with generic starting exposures"
+              f.unsupported
+                ? ` · ${esc(f.unsupported)}`
+                : f.known_model
+                  ? ""
+                  : " · not in the model library yet — added with generic starting exposures"
             }</div>
           </div>
-          <span class="tag">${f.added ? "Added" : "New"}</span>
+          <span class="tag">${f.added ? "Added" : f.unsupported ? "Not yet" : "New"}</span>
         </label>`
       )
       .join("") +
-    (rows.some((f) => !f.added) ? `<button class="btn" id="btnAddFound">Add selected printers</button>` : "");
+    (rows.some((f) => !f.added && !f.unsupported) ? `<button class="btn" id="btnAddFound">Add selected printers</button>` : "");
   $("btnAddFound")?.addEventListener("click", addFoundPrinters);
 }
 

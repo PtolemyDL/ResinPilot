@@ -19,23 +19,49 @@ Finds your printers on the network, shows them live, logs every print, and learn
 
 ## Supported printers
 
-ResinPilot talks to printers through **drivers**. It ships with the **SDCP** driver, which covers network-connected printers on ChiTu mainboards, including:
+ResinPilot talks to printers through **drivers**. It ships with the **SDCP** driver for network-connected printers on ChiTu (CBD) mainboards, which is what ELEGOO's Wi-Fi resin printers use. SDCP has two generations. ResinPilot checks which one each printer reports, so the lists below show what to expect, and the app tells you if a printer can't be added.
 
-| Brand  | Models with a tuned profile                                  |
-| ------ | ------------------------------------------------------------ |
-| ELEGOO | Saturn 4 Ultra 16K, Saturn 4 Ultra, Mars 5 Ultra              |
+**✅ Tested with ResinPilot:** SDCP 3, tuned starting exposures included.
 
-Other SDCP resin printers are detected and work too. These include other network-connected ELEGOO models (e.g. Saturn 3 Ultra, Mars 4 Ultra) and other brands' printers built on a networked ChiTu (CBD) mainboard. SDCP filament printers such as the ELEGOO Centauri Carbon are recognised and left out. Until their model is in the library they start from generic exposures, borrowed from the library model with the closest pixel size, and then learn from your reports like any other printer. Adding a model is a small YAML entry; see [CONTRIBUTING.md](CONTRIBUTING.md).
+| Brand  | Model                |
+| ------ | -------------------- |
+| ELEGOO | Saturn 4 Ultra 16K   |
+| ELEGOO | Saturn 4 Ultra       |
+| ELEGOO | Mars 5 Ultra         |
 
-Printers that speak another protocol need a driver. Drivers are plain Python classes and can live in separate packages ([how to write one](CONTRIBUTING.md#writing-a-printer-driver)). Known protocols that don't have a driver yet:
+**🟢 Should work:** SDCP 3. Other SDCP 3 apps such as ChituManager and the Home Assistant integration report these working. They start from generic exposures until someone adds their profile.
+
+| Brand  | Model      |
+| ------ | ---------- |
+| ELEGOO | Saturn 4   |
+| ELEGOO | Mars 5     |
+| Others | Resin printers on a networked ChiTu mainboard that report SDCP protocol V3 |
+
+**🟡 Found, not supported yet:** older SDCP 1, where the printer connects to a message server (MQTT) run by the app. ResinPilot lists these as *Not yet* and won't add them until an MQTT transport is written. If a firmware update makes your printer report V3, it works.
+
+| Brand  | Models |
+| ------ | ------ |
+| ELEGOO | Saturn 2 / 2 8K, Saturn 3, Saturn 3 Ultra |
+| ELEGOO | Mars 3, Mars 3 Pro, Mars 4, Mars 4 DLP, Mars 4 Max, Mars 4 Ultra |
+| ELEGOO | Jupiter, Jupiter SE (networked units) |
+
+ELEGOO printers without networking (the original Mars, Mars 2 / 2 Pro, Mars C, Saturn, Saturn S, Saturn 8K, plus older models without the Wi-Fi option) can't be monitored, but you can still use ResinPilot's recommendations and log prints by hand.
+
+SDCP *filament* printers (ELEGOO Centauri / Centauri Carbon) answer the same search; ResinPilot recognises them and leaves them out.
+
+Printers missing from the model library start from exposures borrowed from the library model with the closest pixel size, then learn from your reports like any other printer. Adding a model is a small YAML entry; see [CONTRIBUTING.md](CONTRIBUTING.md). Tried a printer that isn't listed? Please [open an issue](https://github.com/PtolemyDL/ResinPilot/issues) with the model, firmware and what happened, and we'll update these lists.
+
+### Other brands
+
+These printers use other protocols and need their own driver. Drivers are plain Python classes and can live in separate packages ([how to write one](CONTRIBUTING.md#writing-a-printer-driver)).
 
 | Printers | How they talk on the network | Driver |
 | -------- | ---------------------------- | ------ |
 | Anycubic Photon Mono M5s / M7 Pro / M7 Max and newer | *LAN Mode*: local MQTT after a signed handshake (see [anycubic-lan](https://pypi.org/project/anycubic-lan/)) | wanted |
-| Older Anycubic Wi-Fi models (Photon Mono X, Mono SQ) | plain-text commands on TCP port 6000 | wanted |
+| Older Anycubic Wi-Fi models (Photon Mono X, Mono X 6K, Mono SQ) | plain-text commands on TCP port 6000 | wanted |
 | Prusa SL1 / SL1S | PrusaLink HTTP API | wanted |
 | Creality HALOT series | WebSocket on port 18188 (HALOT Box), Creality Cloud | wanted |
-| Phrozen, UniFormation, Formlabs and others | no documented local status API (cloud, file share or vendor software only) | — |
+| Phrozen, UniFormation, Formlabs, Longer, Voxelab and others | no documented local status API (cloud, file share, USB or vendor software only) | — |
 
 ## Install
 

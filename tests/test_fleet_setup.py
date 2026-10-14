@@ -54,6 +54,55 @@ def test_sdcp_skips_filament_printers() -> None:
     assert not _is_fdm("Mystery 3", [])
 
 
+def test_sdcp_v1_printers_listed_but_not_addable(monkeypatch: pytest.MonkeyPatch) -> None:
+    from resinpilot.drivers import sdcp_driver
+    from resinpilot.sdcp import DiscoveredPrinter
+
+    monkeypatch.setattr(
+        sdcp_driver,
+        "discover_printers",
+        lambda **_: [
+            DiscoveredPrinter("Old", "192.0.2.30", "id1", "V1.0.0", "V1.4.2", "Saturn 3 Ultra", "ELEGOO"),
+            DiscoveredPrinter("New", "192.0.2.31", "id2", "V3.0.0", "V1.5.0", "Saturn 4 Ultra", "ELEGOO"),
+        ],
+    )
+    monkeypatch.setattr(drivers_mod, "_registry", {"sdcp": sdcp_driver.SdcpDriver()})
+    save_fleet([])
+    svc = WebService()
+    rows = {r["name"]: r for r in svc.discover()["printers"]}
+    assert rows["Old"]["unsupported"] and not rows["New"]["unsupported"]
+    assert svc.add_printers(list(rows.values()))["added"] == ["new"]
+
+
+def test_sdcp_v1_discovery_reply_is_parsed(monkeypatch: pytest.MonkeyPatch) -> None:
+    import json
+
+    from resinpilot import sdcp
+
+    reply = {"Id": "x", "Data": {"Attributes": {
+        "Name": "Saturn3Ultra", "MachineName": "ELEGOO Saturn 3 Ultra", "ProtocolVersion": "V1.0.0",
+        "FirmwareVersion": "V1.4.2", "MainboardIP": "192.0.2.40", "MainboardID": "ABCD"}}}
+
+    class FakeSock:
+        sent = False
+
+        def setsockopt(self, *a): ...
+        def settimeout(self, *a): ...
+        def bind(self, *a): ...
+        def close(self): ...
+        def sendto(self, *a): ...
+
+        def recvfrom(self, _n):
+            if FakeSock.sent:
+                raise sdcp.socket.timeout
+            FakeSock.sent = True
+            return json.dumps(reply).encode(), ("192.0.2.40", 3000)
+
+    monkeypatch.setattr(sdcp.socket, "socket", lambda *a: FakeSock())
+    [p] = sdcp.discover_printers(timeout_s=0.3)
+    assert (p.ip, p.brand, p.machine_name, p.protocol_version) == ("192.0.2.40", "ELEGOO", "Saturn 3 Ultra", "V1.0.0")
+
+
 def test_add_rename_remove(service: WebService) -> None:
     found = service.discover()["printers"]
     res = service.add_printers(found)
