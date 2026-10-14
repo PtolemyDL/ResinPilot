@@ -734,7 +734,7 @@ function tableFromRows(table, rows, { actions = false, printer = false } = {}) {
     return;
   }
   head.innerHTML = `<tr>
-    <th>ID</th><th>When</th>${printer ? "<th>Printer</th>" : ""}<th>Status</th><th>Part</th><th>Application</th><th>Resin</th><th>Layer height</th>
+    <th>ID</th><th>When</th>${printer ? "<th>Printer</th>" : ""}<th>Status</th><th>Part</th><th>Resin</th><th>Layer height</th>
     <th>Layer exposure</th><th>Bottom exposure</th><th>Temp</th><th>UV</th><th>Layers</th><th>Time</th>
     <th>File</th>${actions ? `<th class="row-actions"></th>` : ""}
   </tr>`;
@@ -765,9 +765,7 @@ function tableFromRows(table, rows, { actions = false, printer = false } = {}) {
         <td>${esc(r.when)}</td>
         ${printer ? `<td class="printer-cell">${esc(r.printer || r.printer_id || "—")}</td>` : ""}
         <td>${pill}</td>
-        <td class="part-cell">${r.part_group ? `<div class="part-group">${esc(r.part_group)}</div>` : ""}${esc(r.part_family || "—")}${sizeBadge(r.size_class, r.size)}${shapeBadges(r.shape_tags, r.shape)}</td>
-        <td>${esc(r.app || "—")}</td>
-        <td>${esc(r.resin)}</td>
+        <td class="part-cell">${r.part_group ? `<div class="part-group">${esc(r.part_group)}</div>` : ""}${esc(r.part_family || "—")}${sizeBadge(r.size_class, r.size)}${shapeBadges(r.shape_tags, r.shape)}</td>        <td>${esc(r.resin)}</td>
         <td>${esc(r.layer)}</td>
         <td>${esc(r.layer_exp)}</td>
         <td>${esc(r.bottom_exp)}</td>
