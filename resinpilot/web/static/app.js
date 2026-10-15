@@ -222,6 +222,9 @@ function collectAlerts() {
   return alerts.sort((a, b) => ALERT_RANK[a.level] - ALERT_RANK[b.level]);
 }
 
+const ALERTS_COLLAPSED = 4;
+let alertsExpanded = false;
+
 function renderAlerts() {
   const bar = $("alertBar");
   if (!bar || !state.fleet) return;
@@ -232,9 +235,10 @@ function renderAlerts() {
     return;
   }
   const top = alerts[0].level;
-  const shown = alerts.slice(0, 4);
-  const rest = alerts.slice(4);
-  bar.className = `alert-bar ${top}`;
+  const expanded = alertsExpanded;
+  const shown = expanded ? alerts : alerts.slice(0, ALERTS_COLLAPSED);
+  const rest = alerts.length - shown.length;
+  bar.className = `alert-bar ${top}${expanded ? " expanded" : ""}`;
   bar.innerHTML =
     `<span class="al-count">${alerts.length} need${alerts.length === 1 ? "s" : ""} attention</span>` +
     shown
@@ -243,7 +247,7 @@ function renderAlerts() {
         return `<span class="al-item ${a.level}" title="${esc(a.detail || a.text)}"><span class="al-dot"></span><span class="al-text">${esc(a.text)}</span>${btn}</span>`;
       })
       .join("") +
-    (rest.length ? `<span class="al-more" title="${esc(rest.map((a) => a.text).join("\n"))}">+${rest.length} more</span>` : "");
+    `<button type="button" class="al-more" aria-expanded="${expanded}">${expanded ? "Show less" : rest ? `+${rest} more` : "Show all"}</button>`;
   bar.querySelectorAll("[data-alert]").forEach((b) =>
     b.addEventListener("click", () => {
       const act = shown[Number(b.dataset.alert)].action;
@@ -251,6 +255,15 @@ function renderAlerts() {
       if (act.panel) setPanel(act.panel);
     })
   );
+  const toggle = bar.querySelector(".al-more");
+  toggle.addEventListener("click", () => {
+    alertsExpanded = !alertsExpanded;
+    renderAlerts();
+  });
+  if (!expanded && !rest) {
+    const clipped = [...bar.querySelectorAll(".al-text")].some((t) => t.scrollWidth > t.clientWidth);
+    if (!clipped) toggle.remove();
+  }
 }
 
 function renderStatusBar() {

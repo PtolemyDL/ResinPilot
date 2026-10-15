@@ -488,7 +488,22 @@ button.btn:disabled { opacity: 0.5; cursor: default; }
   font: 600 12px var(--font);
   cursor: pointer;
 }
-.al-more { flex-shrink: 0; margin-left: auto; font-size: 12px; color: var(--muted); cursor: help; }
+.al-more {
+  flex-shrink: 0;
+  margin-left: auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--al);
+  font: 600 12px var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.al-more:hover { background: color-mix(in srgb, var(--al) 14%, transparent); }
+.alert-bar.expanded { flex-wrap: wrap; overflow: visible; row-gap: 6px; }
+.alert-bar.expanded .al-item { flex-shrink: 0; max-width: 100%; }
+.alert-bar.expanded .al-item .al-text { white-space: normal; overflow: visible; }
 @media (prefers-reduced-motion: reduce) {
   .alert-bar, .al-item.critical .al-dot { animation: none; }
 }
