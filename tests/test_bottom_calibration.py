@@ -120,9 +120,9 @@ def test_engine_uses_calibrated_bottom(history: HistoryStore) -> None:
     after = engine.recommend(PID, RID, 0.05, 25.0)
     assert after.bottom_calibrated
     assert after.settings.bottom_exposure_time > 40.0
-    # Same bottom at both layer heights — it's about the plate, not Z
     other = engine.recommend(PID, RID, 0.025, 25.0)
-    assert other.settings.bottom_exposure_time == after.settings.bottom_exposure_time
+    assert other.settings.bottom_exposure_time >= 35.0
+    assert other.settings.bottom_exposure_time < after.settings.bottom_exposure_time
 
 
 def test_each_resin_calibrates_from_its_own_runs(history: HistoryStore) -> None:

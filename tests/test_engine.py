@@ -63,9 +63,11 @@ def sample_resin() -> Resin:
 
 
 def test_scale_exposure_thicker_needs_more() -> None:
+    import math
+
     t = scale_exposure(2.5, 0.10, 0.05)
     assert t > 2.5
-    assert t == pytest.approx(2.5 * (2.0**0.85), rel=1e-6)
+    assert t == pytest.approx(2.5 * math.exp(0.05 / 0.12), rel=1e-6)
 
 
 def test_scale_exposure_thinner_needs_less() -> None:

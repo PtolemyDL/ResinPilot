@@ -180,9 +180,10 @@ class PrinterLearner:
             out.bottom_exposure_time *= target_ref[1]
         train_temp = _training_temp(records)
         if train_temp is not None and abs(train_temp - vat_temperature_c) > 0.5:
-            from .engine import temperature_factor
+            from .cure import prior_ea, temperature_factor
 
-            out.normal_exposure_time *= temperature_factor(vat_temperature_c) / temperature_factor(train_temp)
+            ea = prior_ea(resin)
+            out.normal_exposure_time *= temperature_factor(vat_temperature_c, ea) / temperature_factor(train_temp, ea)
             scope += f"; temp-corrected {train_temp:.0f}→{vat_temperature_c:.0f} °C"
         out.rest_time_after_retract = float(
             models["rest_time_after_retract"].predict(query)[0]

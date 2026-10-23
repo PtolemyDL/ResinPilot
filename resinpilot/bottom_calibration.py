@@ -8,9 +8,9 @@ outcomes rather than scaled from layer exposure:
 * over-cure reports (elephant foot, part welded to the plate) pull it down,
 * the floor (resin minimum, or the user's minimum bottom exposure) is never crossed.
 
-Runs at every layer height count — bottom layers are about the plate, not
-the Z resolution of the rest of the part. Each resin calibrates from its own
-runs on that printer.
+Each resin calibrates from its own runs on that printer. A caller can project
+every run onto the requested layer height and vat temperature first, so a
+success at one height is not copied unchanged to another.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from .cure import anchor_temp, arrhenius
 from .history import HistoryRecord, HistoryStore
 from .models import PrintOutcome
 
@@ -113,6 +114,10 @@ def calibrate_bottom_exposure(
     baseline_ref: Callable[[str, float], tuple[float, float] | None] | None = None,
     run_filter: Callable[[HistoryRecord], bool] | None = None,
     scope: str = "this resin's",
+    project: Callable[[HistoryRecord], float] | None = None,
+    target_layer_height: float = 0.05,
+    target_temp_c: float = 25.0,
+    temperature_ea: float | None = None,
 ) -> BottomCalibration:
     """Calibrate from this resin's own runs on this printer (newest first).
 
@@ -125,7 +130,16 @@ def calibrate_bottom_exposure(
     if run_filter is None:
         runs = runs[:limit]
     if not runs:
-        return _from_other_resins(all_runs, resin_id, current, floor, baseline_ref)
+        return _from_other_resins(
+            all_runs,
+            resin_id,
+            current,
+            floor,
+            baseline_ref,
+            target_layer_height,
+            target_temp_c,
+            temperature_ea,
+        )
 
     anchor_num = 0.0
     anchor_den = 0.0
@@ -138,7 +152,8 @@ def calibrate_bottom_exposure(
 
     for i, rec in enumerate(runs):
         weight = RECENCY_DECAY**i
-        bottom = max(floor, float(rec.settings.bottom_exposure_time))
+        raw = project(rec) if project is not None else float(rec.settings.bottom_exposure_time)
+        bottom = max(floor, raw)
         if rec.outcome == PrintOutcome.SUCCESS:
             anchor_num += weight * bottom
             anchor_den += weight
@@ -195,8 +210,11 @@ def _from_other_resins(
     current: float,
     floor: float,
     baseline_ref: Callable[[str, float], tuple[float, float] | None] | None,
+    target_layer_height: float = 0.05,
+    target_temp_c: float = 25.0,
+    temperature_ea: float | None = None,
 ) -> BottomCalibration:
-    target = baseline_ref(resin_id, 0.05) if baseline_ref else None
+    target = baseline_ref(resin_id, target_layer_height) if baseline_ref else None
     num = den = 0.0
     n = 0
     for i, rec in enumerate(r for r in runs if r.outcome == PrintOutcome.SUCCESS):
@@ -206,8 +224,11 @@ def _from_other_resins(
             if ref is None or target is None:
                 continue
             ratio = target[1] / ref[1]
+        temp = 1.0
+        if temperature_ea:
+            temp = arrhenius(target_temp_c, anchor_temp(rec), temperature_ea)
         w = (RECENCY_DECAY**i) * OTHER_RESIN_WEIGHT
-        num += w * float(rec.settings.bottom_exposure_time) * ratio
+        num += w * float(rec.settings.bottom_exposure_time) * ratio * temp
         den += w
         n += 1
     if not n:

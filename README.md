@@ -11,7 +11,7 @@ Finds your printers on the network, shows them live, logs every print, and learn
 
 - **Finds your printers by itself.** Open the app, press *Search network*, tick the printers you want. No IP addresses or config files to edit (you can still add a printer by IP when your network blocks discovery).
 - **Live status for the whole fleet.** Printing / idle / error, progress and time left, vat and UV LED temperatures, release-film wear, and a banner for anything that needs attention.
-- **Exposure profiles for today.** For each printer and the resin in its vat, ResinPilot suggests layer and bottom exposure for your usual layer heights, adjusted for room temperature (read from a printer's vat sensor).
+- **Exposure profiles for today.** For each printer and the resin in its vat, ResinPilot suggests layer and bottom exposure from that resin's cure curve: layer height and vat temperature (read from a printer's vat sensor) change the time, and a clear resin does not get the same cut as a pigmented one. Successful prints on that printer replace the starting curve. Insights plots the curves.
 - **Learns from your prints.** Report *success* or *fail* (with a reason: didn't stick, layers split, details closed up, …) and the recommendations shift for that printer, resin and part. Prints are grouped into parts from their file names, so a part you print often gets its own tuned settings.
 - **History and insights.** A searchable print log (it can import past prints straight from the printers), success rates, settings timelines, recipe maps and failure breakdowns per printer.
 - **Chitubox check (Windows).** Notices the model you open in Chitubox and the file you send to a printer, and warns when the file's exposures differ from the recommendation.
@@ -67,7 +67,7 @@ These printers use other protocols and need their own driver. Drivers are plain 
 
 ### Windows: one file
 
-Download `ResinPilot.exe` from the [latest release](https://github.com/PtolemyDL/ResinPilot/releases/latest) and double-click it. A console window shows the address and your browser opens the app. Close the window to stop it.
+Download `ResinPilot.exe` from the [latest release](https://github.com/PtolemyDL/ResinPilot/releases/latest) and double-click it. ResinPilot opens in its own window (an Edge or Chrome app window) with a small console window beside it. Close the console to stop ResinPilot. Double-clicking again while it runs just reopens the window.
 
 ### Any OS: Python 3.10+
 

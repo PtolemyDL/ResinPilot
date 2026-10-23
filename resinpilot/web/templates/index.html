@@ -205,6 +205,13 @@
         <div class="insights" id="insights">Loading…</div>
       </div>
       <div class="card">
+        <h2>Layer exposure vs layer height</h2>
+        <div class="caption" id="curveCaption">Cure curve for each resin. A colder vat needs more time, and a pigmented resin changes more with layer height than a clear one.</div>
+        <div class="curve-controls" id="curveTemps"></div>
+        <div class="curve-controls" id="curveResins"></div>
+        <div class="chart-box curve"><canvas id="chartCurves"></canvas></div>
+      </div>
+      <div class="card">
         <h2>Settings timeline</h2>
         <div class="caption">Layer exposure (left axis) and bottom exposure (right axis) for every print · red points are fails · hover for the file and failure reason</div>
         <div class="chart-box tall"><canvas id="chartTimeline"></canvas></div>

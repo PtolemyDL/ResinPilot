@@ -1,13 +1,32 @@
-"""Recommendation engine: learned → history → baseline → temp/geometry → clamp."""
+"""Recommendation engine: working curve → history → baseline → geometry → clamp.
+
+Layer exposure follows the resin working curve (time grows as exp(layer height / Dp)),
+with an Arrhenius temperature term. Dp and the temperature response are fit
+from this printer's successes when the prints cover more than one layer height
+or vat temperature, and otherwise come from the resin family.
+"""
 
 from __future__ import annotations
 
 import copy
+import math
 from dataclasses import replace
 from typing import Any, Callable
 
 from .bottom_calibration import calibrate_bottom_exposure
 from .catalog import Catalog
+from .cure import (
+    REF_TEMP_C,
+    anchor_temp,
+    arrhenius,
+    describe_curve,
+    fit_cure,
+    prior_dp,
+    prior_ea,
+    project_runs,
+    project_time,
+    temperature_factor,
+)
 from .geometry import apply_geometry_heuristics, bottom_adhesion_factor
 from .history import HistoryRecord, HistoryStore
 from .learning import PrinterLearner
@@ -24,17 +43,15 @@ from .parts import size_class as parts_size_class
 from .outcome_signals import RESIN_WIDE_WEIGHT, calibrate_layer_exposure, is_clean_success
 from .shape_scan import TAG_CHANNELS, TAG_FINE, TAG_LABELS, THIN_FEATURE_MM
 
-LAYER_SCALE_EXPONENT = 0.85
-REF_TEMP_C = 25.0
-TEMP_EXPOSURE_PCT_PER_C = 0.025
+DEFAULT_DP_MM = 0.12
+CURVE_HEIGHTS_MM = (0.02, 0.025, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10)
+CURVE_TEMPS_C = (20.0, 25.0, 30.0)
 TEMP_REST_DELTA_PER_C = 0.05
-BOTTOM_EXPOSURE_FLOOR_FACTOR = 0.85
 # Default for the "minimum bottom exposure" setting (0 = only each resin's own minimum applies).
 GLOBAL_MIN_BOTTOM_EXPOSURE = 0.0
 # Part-specific calibration kicks in once a part / size class has this many runs.
 MIN_FAMILY_RUNS = 3
 MIN_SIZE_CLASS_RUNS = 3
-FAMILY_RECENCY_DECAY = 0.8
 
 SAFE_RANGES = {
     "layer_height": (0.01, 0.20),
@@ -53,37 +70,53 @@ SAFE_RANGES = {
 }
 
 
-def scale_exposure(t_ref: float, h: float, h_ref: float, k: float = LAYER_SCALE_EXPONENT) -> float:
+def scale_exposure(t_ref: float, h: float, h_ref: float, dp_mm: float | None = None) -> float:
+    """Exposure time at a new layer height: t scales as exp(delta h / Dp). Default Dp is 0.12 mm."""
     if h_ref <= 0:
         raise ValueError("h_ref must be positive")
-    return t_ref * ((h / h_ref) ** k)
+    dp = DEFAULT_DP_MM if dp_mm is None else dp_mm
+    if dp <= 0:
+        raise ValueError("dp_mm must be positive")
+    return t_ref * math.exp((h - h_ref) / dp)
 
 
-def temperature_factor(vat_temp_c: float, pct_per_c: float = TEMP_EXPOSURE_PCT_PER_C) -> float:
-    delta = REF_TEMP_C - vat_temp_c
-    return 1.0 + (delta * pct_per_c)
+def _curve_label(name: str) -> str:
+    for prefix in ("ELEGOO ", "Anycubic ", "Siraya Tech ", "3DMaterials "):
+        name = name.replace(prefix, "")
+    return name.replace(" Resin", "").replace(" 3D Printer", "")
+
+
+def _curve_exposure(basis, baseline, model, height: float, temp: float) -> float | None:
+    if basis:
+        value = project_runs(basis, height, temp, model)
+        if value is not None:
+            return round(value, 2)
+    if baseline is None or baseline.settings.normal_exposure_time <= 0:
+        return None
+    scaled = scale_exposure(
+        baseline.settings.normal_exposure_time,
+        height,
+        baseline.layer_height,
+        model.dp_mm,
+    )
+    return round(scaled * arrhenius(temp, baseline.vat_temperature_c, model.ea_j_mol), 2)
 
 
 def apply_layer_height_scaling(
     settings: PrintSettings,
     target_height: float,
     h_ref: float | None = None,
+    dp_mm: float | None = None,
 ) -> PrintSettings:
     h_ref = h_ref if h_ref is not None else settings.layer_height
     if abs(target_height - h_ref) < 1e-9:
         out = copy.deepcopy(settings)
         out.layer_height = target_height
         return out
-    normal = scale_exposure(settings.normal_exposure_time, target_height, h_ref)
-    bottom = scale_exposure(settings.bottom_exposure_time, target_height, h_ref)
-    bottom = max(
-        bottom,
-        settings.bottom_exposure_time * BOTTOM_EXPOSURE_FLOOR_FACTOR * (target_height / h_ref),
-    )
     out = copy.deepcopy(settings)
     out.layer_height = target_height
-    out.normal_exposure_time = normal
-    out.bottom_exposure_time = bottom
+    out.normal_exposure_time = scale_exposure(settings.normal_exposure_time, target_height, h_ref, dp_mm)
+    out.bottom_exposure_time = scale_exposure(settings.bottom_exposure_time, target_height, h_ref, dp_mm)
     return out
 
 
@@ -92,7 +125,7 @@ def apply_temperature_compensation(
     vat_temp_c: float,
     resin: Resin,
 ) -> PrintSettings:
-    factor = temperature_factor(vat_temp_c)
+    factor = temperature_factor(vat_temp_c, prior_ea(resin))
     out = copy.deepcopy(settings)
     out.normal_exposure_time = max(
         resin.min_normal_exposure, settings.normal_exposure_time * factor
@@ -258,9 +291,12 @@ class RecommendationEngine:
             baseline_ref=self._baseline_ref(printer_id),
         )
         if learned is not None and learned.r2_normal >= 0.15:
+            curve = self._overlay_cure(learned.settings, printer_id, resin, layer_height, vat_temperature_c)
+            if curve:
+                learned = replace(learned, detail=f"{curve}; {learned.detail}")
             settings, bottom_cal = self._calibrate_bottom(
                 learned.settings, printer_id, resin_id, resin, geometry_class, cross_section_mm2,
-                part_family, size_class,
+                part_family, size_class, vat_temperature_c,
             )
             settings = clamp_settings(settings, resin, self.min_bottom_exposure)
             return Recommendation(
@@ -306,41 +342,37 @@ class RecommendationEngine:
                 printer_id, resin_id, layer_height, geometry_class=geometry_class
             )
             if nearest is not None:
-                settings = apply_layer_height_scaling(
-                    nearest.settings, layer_height, nearest.layer_height
-                )
-                if abs(nearest.layer_height - layer_height) > 1e-6:
-                    confidence = ConfidenceSource.INTERPOLATED
-                    source_detail = (
-                        f"Scaled from history id={nearest.id} at "
-                        f"{nearest.layer_height:.3f} mm / {nearest.geometry_class.label}"
-                    )
-                else:
-                    confidence = ConfidenceSource.CALIBRATED
-                    source_detail = f"History id={nearest.id} ({nearest.geometry_class.label})"
-                if abs(nearest.vat_temperature_c - vat_temperature_c) > 0.5:
-                    factor = temperature_factor(vat_temperature_c) / temperature_factor(
-                        nearest.vat_temperature_c
-                    )
-                    settings.normal_exposure_time *= factor
-                    settings.bottom_exposure_time *= factor
+                basis = self._cure_basis(printer_id, resin_id)
+                model = fit_cure(resin, basis)
+                settings = copy.deepcopy(nearest.settings)
+                settings.layer_height = layer_height
+                normal = project_runs(basis, layer_height, vat_temperature_c, model)
+                bottom = project_runs(basis, layer_height, vat_temperature_c, model, "bottom_exposure_time")
+                if normal is not None:
+                    settings.normal_exposure_time = normal
+                if bottom is not None:
+                    settings.bottom_exposure_time = bottom
+                same_height = all(abs(r.layer_height - layer_height) < 1e-3 for r in basis)
+                if abs(vat_temperature_c - REF_TEMP_C) >= 0.5:
                     confidence = ConfidenceSource.TEMP_ADJUSTED
-                    source_detail += "; temperature re-adjusted"
-                    temp_matched = True
+                elif same_height:
+                    confidence = ConfidenceSource.CALIBRATED
                 else:
-                    temp_matched = True
+                    confidence = ConfidenceSource.INTERPOLATED
+                source_detail = describe_curve(resin, model, layer_height, vat_temperature_c, same_height)
+                temp_matched = True
                 geom_matched = nearest.geometry_class == geometry_class
 
         # 3) YAML baseline
         if settings is None:
             settings = apply_layer_height_scaling(
-                copy.deepcopy(template), layer_height, baseline.layer_height
+                copy.deepcopy(template), layer_height, baseline.layer_height, prior_dp(resin)
             )
             if abs(layer_height - baseline.layer_height) > 1e-6:
                 confidence = ConfidenceSource.INTERPOLATED
                 source_detail = (
-                    f"Scaled from YAML baseline {baseline.layer_height:.3f} mm @ "
-                    f"{baseline.vat_temperature_c:.0f} °C"
+                    f"Baseline {baseline.layer_height:.3f} mm @ {baseline.vat_temperature_c:.0f} °C, "
+                    f"{resin.material_family} cure curve (Dp {prior_dp(resin) * 1000:.0f} µm)"
                 )
             else:
                 confidence = ConfidenceSource.BASELINE
@@ -367,12 +399,12 @@ class RecommendationEngine:
         if learned is not None:
             warnings.append(
                 f"Regression had {learned.n_samples} samples but weak fit "
-                f"(R²={learned.r2_normal:.2f}) — using rule-based path."
+                f"(R²={learned.r2_normal:.2f}) — exposure follows the resin cure curve."
             )
 
         settings, bottom_cal = self._calibrate_bottom(
             settings, printer_id, resin_id, resin, geometry_class, cross_section_mm2,
-            part_family, size_class,
+            part_family, size_class, vat_temperature_c,
         )
         settings = clamp_settings(settings, resin, self.min_bottom_exposure)
         return Recommendation(
@@ -446,15 +478,115 @@ class RecommendationEngine:
                 return (lambda r: parts_size_class(r) == size_class), f"{SIZE_LABELS[size_class].lower()} parts'"
         return None, "this resin's"
 
-    def _weighted_exposure(self, ok: list[HistoryRecord], layer_height: float) -> tuple[float, int, bool]:
+    def exposure_curves(self, printer_id: str, resin_id: str = "") -> dict[str, Any]:
+        """Layer exposure against layer height, one line per resin and vat temperature.
+
+        A resin with successful prints uses the curve fit from those prints.
+        Otherwise the line is that printer's manufacturer baseline, shaped by
+        the resin family's penetration and temperature response.
+        """
+        names = {rid: resin.name for rid, resin in self.catalog.primary_resins.items()}
+        if resin_id:
+            resin_ids = [resin_id] if resin_id in names else []
+        else:
+            resin_ids = list(names)
+        used = {
+            rid
+            for rid in resin_ids
+            if self.history.list_successes(printer_id, rid, limit=1)
+        }
+        resins: list[dict[str, Any]] = []
+        series: list[dict[str, Any]] = []
+        for rid in resin_ids:
+            resin = self.catalog.resins[rid]
+            basis = self._cure_basis(printer_id, rid)
+            model = fit_cure(resin, basis)
+            baseline = self.catalog.get_baseline(printer_id, rid)
+            if not basis and baseline is None:
+                continue
+            source = "fit" if basis else "baseline"
+            resins.append(
+                {
+                    "id": rid,
+                    "name": resin.name,
+                    "label": _curve_label(resin.name),
+                    "used": rid in used,
+                    "dp_um": round(model.dp_mm * 1000),
+                    "source": source,
+                    "n": model.n if basis else 0,
+                }
+            )
+            for temp in CURVE_TEMPS_C:
+                series.append(
+                    {
+                        "resin_id": rid,
+                        "temp": temp,
+                        "exposure": [
+                            _curve_exposure(basis, baseline, model, height, temp)
+                            for height in CURVE_HEIGHTS_MM
+                        ],
+                    }
+                )
+        prints = []
+        for rec in self.history.list_successes(printer_id, resin_id or None, limit=400):
+            if rec.resin_id not in names:
+                continue
+            if rec.settings.normal_exposure_time <= 0:
+                continue
+            prints.append(
+                {
+                    "resin_id": rec.resin_id,
+                    "layer": rec.layer_height,
+                    "exp": rec.settings.normal_exposure_time,
+                    "temp": anchor_temp(rec),
+                }
+            )
+        return {
+            "heights": list(CURVE_HEIGHTS_MM),
+            "temps": list(CURVE_TEMPS_C),
+            "resins": resins,
+            "series": series,
+            "prints": prints,
+        }
+
+    def _cure_basis(self, printer_id: str, resin_id: str) -> list[HistoryRecord]:
+        runs = self.history.list_successes(printer_id, resin_id, limit=200)
+        clean = [r for r in runs if is_clean_success(r)]
+        return clean or runs
+
+    def _overlay_cure(
+        self,
+        settings: PrintSettings,
+        printer_id: str,
+        resin: Resin,
+        layer_height: float,
+        vat_temperature_c: float,
+    ) -> str:
+        """Replace a linear exposure guess with the resin working curve."""
+        basis = self._cure_basis(printer_id, resin.id)
+        if not basis:
+            return ""
+        model = fit_cure(resin, basis)
+        normal = project_runs(basis, layer_height, vat_temperature_c, model)
+        if normal is None:
+            return ""
+        settings.normal_exposure_time = normal
+        settings.layer_height = layer_height
+        same_height = all(abs(r.layer_height - layer_height) < 1e-3 for r in basis)
+        return describe_curve(resin, model, layer_height, vat_temperature_c, same_height)
+
+    def _weighted_exposure(
+        self,
+        ok: list[HistoryRecord],
+        layer_height: float,
+        resin: Resin,
+        vat_temperature_c: float,
+    ) -> tuple[float, int, bool, Any]:
         same_layer = [r for r in ok if abs(r.layer_height - layer_height) < 1e-3]
         basis = same_layer if len(same_layer) >= 2 else ok
-        num = den = 0.0
-        for i, r in enumerate(basis):
-            w = FAMILY_RECENCY_DECAY**i
-            num += w * scale_exposure(r.settings.normal_exposure_time, layer_height, r.layer_height)
-            den += w
-        return num / den, len(basis), basis is same_layer
+        model = fit_cure(resin, basis)
+        value = project_runs(basis, layer_height, vat_temperature_c, model)
+        return (value if value is not None else 0.0), len(basis), basis is same_layer, model
 
     def _apply_family_exposure(self, rec: Recommendation, part_family: str, layer_height: float) -> None:
         """Use what actually worked for this part (or same-shape parts): recency-weighted layer exposure."""
@@ -483,11 +615,16 @@ class RecommendationEngine:
                     f"recommendation until there are {MIN_FAMILY_RUNS}"
                 )
                 return
-        value, n, same_layer = self._weighted_exposure(ok, layer_height)
         resin = self.catalog.resins[rec.resin_id]
+        value, n, same_layer, model = self._weighted_exposure(ok, layer_height, resin, rec.vat_temperature_c)
         rec.settings.normal_exposure_time = round(max(resin.min_normal_exposure, value), 2)
         rec.confidence = ConfidenceSource.CALIBRATED
-        at = f"at {layer_height:.3f} mm" if same_layer else "scaled from other layer heights"
+        fitted = "fit" if model.dp_source == "fit" else "resin prior"
+        at = (
+            f"at {layer_height:.3f} mm"
+            if same_layer
+            else f"on the cure curve (Dp {model.dp_mm * 1000:.0f} µm, {fitted})"
+        )
         rec.part_detail = f"Layer exposure from {n} successful prints {source} on this printer ({at})"
         rec.source_detail = f"{rec.part_detail}; {rec.source_detail}"
 
@@ -517,9 +654,11 @@ class RecommendationEngine:
                 if b is None or b.settings.normal_exposure_time <= 0 or b.settings.bottom_exposure_time <= 0:
                     cache[key] = None
                 else:
+                    resin = self.catalog.resins.get(resin_id)
+                    dp = prior_dp(resin) if resin is not None else DEFAULT_DP_MM
                     cache[key] = (
-                        scale_exposure(b.settings.normal_exposure_time, layer_height, b.layer_height),
-                        b.settings.bottom_exposure_time,
+                        scale_exposure(b.settings.normal_exposure_time, layer_height, b.layer_height, dp),
+                        scale_exposure(b.settings.bottom_exposure_time, layer_height, b.layer_height, dp),
                     )
             return cache[key]
 
@@ -535,9 +674,22 @@ class RecommendationEngine:
         cross_section_mm2: float,
         part_family: str = "",
         size_class: str = "",
+        vat_temperature_c: float = REF_TEMP_C,
     ):
         floor = max(self.min_bottom_exposure, resin.min_bottom_exposure)
         run_filter, scope = self._part_scope(printer_id, resin_id, part_family, size_class)
+        model = fit_cure(resin, self._cure_basis(printer_id, resin_id))
+
+        def project(rec: HistoryRecord) -> float:
+            return project_time(
+                rec.settings.bottom_exposure_time,
+                rec.layer_height,
+                settings.layer_height,
+                anchor_temp(rec),
+                vat_temperature_c,
+                model,
+            )
+
         cal = calibrate_bottom_exposure(
             self.history,
             printer_id,
@@ -547,6 +699,10 @@ class RecommendationEngine:
             baseline_ref=self._baseline_ref(printer_id),
             run_filter=run_filter,
             scope=scope,
+            project=project,
+            target_layer_height=settings.layer_height,
+            target_temp_c=vat_temperature_c,
+            temperature_ea=prior_ea(resin),
         )
         if not cal.calibrated:
             return settings, cal

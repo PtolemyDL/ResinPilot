@@ -1020,6 +1020,28 @@ button.btn:disabled { opacity: 0.5; cursor: default; }
   .chart-grid { grid-template-columns: 1fr; }
 }
 .chart-box.tall { height: 340px; }
+.chart-box.curve { height: 420px; }
+.curve-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+.curve-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--secondary);
+  cursor: pointer;
+}
+.curve-swatch {
+  width: 22px;
+  height: 0;
+  border-top-width: 3px;
+  border-top-style: solid;
+  display: inline-block;
+}
 #chartKpis { grid-template-columns: repeat(6, 1fr); }
 @media (max-width: 1000px) {
   #chartKpis { grid-template-columns: repeat(3, 1fr); }

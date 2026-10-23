@@ -994,6 +994,7 @@ class WebService:
             "bottom_bins": bottom_distribution(records),
             "weekly": weekly_usage(records),
             "failures": failure_breakdown(records),
+            "curves": self.engine.exposure_curves(printer_id, resin_id),
             "rows": self._rows_with_history_numbers(records, names),
         }
 

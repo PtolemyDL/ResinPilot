@@ -10,6 +10,9 @@ const state = {
   today: null,
   reportPrinterId: null,
   charts: {},
+  curveKey: "",
+  curveOn: null,
+  curveTemps: null,
   meta: null,
   settings: null,
   lastRecommend: null,
@@ -823,6 +826,7 @@ async function loadCharts() {
 
   const colors = chartColors();
   renderTimelineChart(data.timeline, colors);
+  renderCureChart(data.curves, colors, pid, resinSel.value);
   renderRecipeChart(data, colors);
   renderBottomChart(data, colors);
   renderWeeklyChart(data.weekly, colors);
@@ -922,6 +926,133 @@ function renderTimelineChart(points, colors) {
         x: chartScale(colors, "", { type: "linear", ticks: { color: colors.muted, callback: (v) => shortDate(v), maxTicksLimit: 10 } }),
         y: chartScale(colors, "Layer exposure (s)", { position: "left" }),
         y2: chartScale(colors, "Bottom exposure (s)", { position: "right", grid: { drawOnChartArea: false } }),
+      },
+    }),
+  });
+}
+
+const CURVE_PALETTE = ["#0a84ff", "#ff9f0a", "#30d158", "#ff453a", "#bf5af2", "#64d2ff", "#ff375f", "#ac8e68", "#ffd60a", "#5e5ce6"];
+const CURVE_COMPARE = ["elegoo_8k_standard_space_grey", "elegoo_abs_like_3_black", "anycubic_clear", "superflex"];
+
+function renderCureChart(curves, colors, printerId, resinFilter) {
+  if (!curves) return;
+  const key = `${printerId}|${resinFilter}`;
+  if (state.curveKey !== key) {
+    state.curveKey = key;
+    state.curveOn = null;
+    state.curveTemps = null;
+  }
+  const resins = curves.resins || [];
+  if (!state.curveOn) {
+    const on = new Set(resins.filter((r) => r.used).map((r) => r.id));
+    if (!resinFilter && on.size < 3) {
+      for (const id of CURVE_COMPARE) {
+        if (resins.some((r) => r.id === id)) on.add(id);
+      }
+    }
+    if (!on.size && resins[0]) on.add(resins[0].id);
+    state.curveOn = on;
+  }
+  if (!state.curveTemps) state.curveTemps = new Set((curves.temps || []).map(Number));
+  const colorOf = Object.fromEntries(resins.map((r, i) => [r.id, CURVE_PALETTE[i % CURVE_PALETTE.length]]));
+  $("curveTemps").innerHTML = (curves.temps || [])
+    .map((t) => {
+      const dash = Number(t) === 25 ? "solid" : Number(t) < 25 ? "dashed" : "dotted";
+      const checked = state.curveTemps.has(Number(t)) ? "checked" : "";
+      return `<label><input type="checkbox" data-curve-temp="${t}" ${checked}><span class="curve-swatch" style="border-top-style:${dash};border-top-color:${colors.ink}"></span>${t} °C</label>`;
+    })
+    .join("");
+  $("curveResins").innerHTML = resins
+    .map((r) => {
+      const hint = r.source === "fit" ? `fit from this printer, Dp ${r.dp_um} µm` : `manufacturer baseline, Dp ${r.dp_um} µm`;
+      const checked = state.curveOn.has(r.id) ? "checked" : "";
+      return `<label title="${esc(r.name)} · ${esc(hint)}"><input type="checkbox" data-curve-resin="${esc(r.id)}" ${checked}><span class="curve-swatch" style="border-top-color:${colorOf[r.id]}"></span>${esc(r.label)}</label>`;
+    })
+    .join("");
+  $("curveTemps").onchange = (e) => {
+    const box = e.target.closest("input[data-curve-temp]");
+    if (!box) return;
+    const temp = Number(box.dataset.curveTemp);
+    if (box.checked) state.curveTemps.add(temp);
+    else state.curveTemps.delete(temp);
+    drawCure(curves, colors, colorOf);
+  };
+  $("curveResins").onchange = (e) => {
+    const box = e.target.closest("input[data-curve-resin]");
+    if (!box) return;
+    if (box.checked) state.curveOn.add(box.dataset.curveResin);
+    else state.curveOn.delete(box.dataset.curveResin);
+    drawCure(curves, colors, colorOf);
+  };
+  drawCure(curves, colors, colorOf);
+}
+
+function drawCure(curves, colors, colorOf) {
+  const resins = Object.fromEntries((curves.resins || []).map((r) => [r.id, r]));
+  const datasets = [];
+  for (const series of curves.series || []) {
+    if (!state.curveOn.has(series.resin_id) || !state.curveTemps.has(Number(series.temp))) continue;
+    const resin = resins[series.resin_id];
+    if (!resin) continue;
+    const temp = Number(series.temp);
+    datasets.push({
+      label: `${resin.label} · ${temp} °C`,
+      data: (curves.heights || []).map((h, i) => ({ x: h, y: series.exposure[i] })),
+      borderColor: colorOf[series.resin_id],
+      backgroundColor: colorOf[series.resin_id],
+      borderDash: temp === 25 ? [] : temp < 25 ? [7, 4] : [2, 3],
+      borderWidth: temp === 25 ? 3 : 2,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      tension: 0.25,
+    });
+  }
+  for (const resinId of state.curveOn) {
+    const resin = resins[resinId];
+    if (!resin) continue;
+    const prints = (curves.prints || []).filter((p) => p.resin_id === resinId);
+    if (!prints.length) continue;
+    datasets.push({
+      type: "scatter",
+      label: `${resin.label} prints`,
+      data: prints.map((p) => ({ x: p.layer, y: p.exp, p })),
+      pointRadius: 4,
+      pointBackgroundColor: withAlpha(colorOf[resinId], "cc"),
+      borderColor: colorOf[resinId],
+    });
+  }
+  const shown = (curves.resins || []).filter((r) => state.curveOn.has(r.id));
+  const fit = shown.filter((r) => r.source === "fit").map((r) => r.label);
+  const baseline = shown.filter((r) => r.source !== "fit").map((r) => r.label);
+  const bits = ["Solid is 25 °C, dashed is 20 °C, dotted is 30 °C. Dots are successful prints."];
+  if (fit.length) bits.push(`Fit from this printer: ${fit.join(", ")}.`);
+  if (baseline.length) bits.push(`Manufacturer baseline: ${baseline.join(", ")}.`);
+  $("curveCaption").textContent = bits.join(" ");
+  drawChart("curves", "chartCurves", {
+    type: "line",
+    data: { datasets },
+    options: chartBaseOptions(colors, {
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: (items) => `${Number(items[0].parsed.x).toFixed(3)} mm`,
+            label: (item) => {
+              const printed = item.raw.p;
+              if (printed) return `${item.dataset.label}: ${printed.exp} s at ${printed.temp} °C`;
+              return `${item.dataset.label}: ${item.parsed.y} s`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: chartScale(colors, "Layer height (mm)", {
+          type: "linear",
+          min: 0.015,
+          max: 0.105,
+          ticks: { color: colors.muted, callback: (v) => Number(v).toFixed(3) },
+        }),
+        y: chartScale(colors, "Layer exposure (s)"),
       },
     }),
   });
