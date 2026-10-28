@@ -9,7 +9,7 @@ Finds your printers on the network, shows them live, logs every print, and learn
 
 ## What it does
 
-- **Finds your printers by itself.** Open the app, press *Search network*, tick the printers you want. No IP addresses or config files to edit (you can still add a printer by IP when your network blocks discovery).
+- **Finds your printers by itself.** Open the app, press *Search network*, tick the printers you want. No IP addresses or config files to edit (you can still add a printer by IP when your network blocks discovery). Removing a printer keeps its history, and adding that same printer again brings the history back. A printer on the network that is not in the fleet raises a notice asking whether to add it; check *Don't remind me again* to hide that printer.
 - **Live status for the whole fleet.** Printing / idle / error, progress and time left, vat and UV LED temperatures, release-film wear, and a banner for anything that needs attention.
 - **Exposure profiles for today.** For each printer and the resin in its vat, ResinPilot suggests layer and bottom exposure from that resin's cure curve: layer height and vat temperature (read from a printer's vat sensor) change the time, and a clear resin does not get the same cut as a pigmented one. Successful prints on that printer replace the starting curve. Insights plots the curves.
 - **Learns from your prints.** Report *success* or *fail* (with a reason: didn't stick, layers split, details closed up, …) and the recommendations shift for that printer, resin and part. Prints are grouped into parts from their file names, so a part you print often gets its own tuned settings.

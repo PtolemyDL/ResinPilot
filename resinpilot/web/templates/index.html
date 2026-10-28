@@ -41,6 +41,7 @@
     </div>
 
     <div class="alert-bar" id="alertBar"></div>
+    <div id="newPrinterNotice" class="detect" hidden></div>
     <div class="status-bar" id="statusBar"></div>
 
     <!-- Today -->
@@ -152,15 +153,16 @@
       <div class="printers-grid">
         <div class="card">
           <h2>Your printers</h2>
-          <div class="caption">Printers ResinPilot watches and makes profiles for</div>
+          <div class="caption">Printers ResinPilot watches and makes profiles for. Removing one keeps its print history, and adding that printer again from the list below brings the history back.</div>
           <div id="fleetList"></div>
+          <div id="removedList"></div>
         </div>
         <div class="card">
           <div class="row" style="justify-content:space-between;align-items:center">
             <h2>Find printers</h2>
             <button class="btn" id="btnSearchPrinters">Search network</button>
           </div>
-          <div class="caption">Finds network-connected resin printers (SDCP: ELEGOO Mars/Saturn and other ChiTu-board printers) on the same network as this computer</div>
+          <div class="caption">Finds network-connected resin printers (SDCP: ELEGOO Mars/Saturn and other ChiTu-board printers) on the same network as this computer. A printer you have not added also raises a notice; check “Don’t remind me again” on that notice to hide it.</div>
           <div class="add-ip">
             <input id="addIp" placeholder="Printer IP address, e.g. 192.168.1.50" />
             <button class="btn secondary" id="btnAddByIp">Add by IP</button>

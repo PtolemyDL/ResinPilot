@@ -12,7 +12,7 @@ from typing import Any
 from .branding import asset_url
 from .catalog import Catalog
 from .drivers import FoundPrinter, drivers, get_driver
-from .fleet import FleetEntry, load_fleet, save_fleet, slug, unique_id
+from .fleet import FleetEntry, load_fleet, load_retired, printer_key, save_fleet, slug, unique_id
 from .paths import ctb_cache_dir, user_dir
 from .settings import load_settings, save_settings
 from .charts import (
@@ -86,6 +86,8 @@ SHAPE_SCAN_INTERVAL_S = 600.0
 # Slicer copies kept on this computer (ChituManager keeps every file it sent to a printer).
 LOCAL_SLICE_DIRS = [SLICER_FILE_DIR]
 DISCOVERY_TIMEOUT_S = 2.5
+# How often to look for printers on the network that are not in the fleet.
+NEW_PRINTER_SCAN_S = 180.0
 SLICER_WATCH_INTERVAL_S = 5.0
 # A sent file is still being written for a moment; wait until it has been quiet this long.
 SENT_SETTLE_S = 10.0
@@ -118,6 +120,7 @@ class WebService:
         self.shape_status: dict[str, Any] = {"running": False, "current": "", "scanned": 0, "queued": 0, "last_error": ""}
         # What Chitubox on this PC is working on: the model opened last and the file sent last.
         self.detected: dict[str, Any] = {"model": None, "sent": None, "error": ""}
+        self.new_printers: list[dict[str, Any]] = []
         self._model_key = ""
         self._sent_seen: set[str] = set()
 
@@ -129,6 +132,7 @@ class WebService:
         self._thread.start()
         self._shape_thread = threading.Thread(target=self._shape_loop, daemon=True)
         self._shape_thread.start()
+        threading.Thread(target=self._notice_loop, daemon=True).start()
         if self.settings.get("watch_chitubox", True):
             # Files sent before the server started are history, not "about to print".
             self._sent_seen = {str(p) for p, _ in sliced_files()}
@@ -359,6 +363,14 @@ class WebService:
                 pass
             self._stop.wait(float(self.settings.get("poll_interval_s") or 20.0))
 
+    def _notice_loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self.refresh_new_printers()
+            except Exception:  # noqa: BLE001
+                pass
+            self._stop.wait(NEW_PRINTER_SCAN_S)
+
     def _read_status(self, printer: Any) -> PrinterLiveStatus:
         driver = get_driver(printer.driver)
         if driver is None:
@@ -453,6 +465,7 @@ class WebService:
                 found.extend(driver.discover(timeout_s=DISCOVERY_TIMEOUT_S, target=target))
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{driver.label}: {exc}")
+        retired = {printer_key(e.driver, e.device_id, e.host): e for e in load_retired()}
         rows = []
         for f in found:
             model = self.catalog.match_model(f.brand, f.model_name, f.driver)
@@ -460,15 +473,20 @@ class WebService:
             check = getattr(get_driver(f.driver), "is_resin", None)
             if model is None and not unsupported and check is not None and not check(f):
                 continue
+            key = printer_key(f.driver, f.device_id, f.host)
+            previous = retired.get(key)
             rows.append(
                 {
                     **f.to_dict(),
+                    "key": key,
                     "model_id": model.id if model else "",
                     "model_label": model.full_name if model else f"{f.brand} {f.model_name}".strip(),
                     "known_model": model is not None,
                     "photo": asset_url(model.photo) if model else "",
                     "added": (f.driver, f.device_id or f.host) in known,
                     "unsupported": unsupported,
+                    "previous_id": previous.id if previous else "",
+                    "history_count": self._history_count(previous.id) if previous else 0,
                 }
             )
         return {"printers": rows, "errors": errors, "drivers": [d.label for d in drivers().values()]}
@@ -476,6 +494,8 @@ class WebService:
     def add_printers(self, picks: list[dict[str, Any]]) -> dict[str, Any]:
         """Add discovered printers (host + device id + driver, optional nickname) to the fleet."""
         fleet = load_fleet()
+        retired = load_retired()
+        retired_by_key = {printer_key(e.driver, e.device_id, e.host): e for e in retired}
         taken = {e.id for e in fleet}
         have = {(e.driver, e.device_id or e.host) for e in fleet}
         added = []
@@ -498,10 +518,17 @@ class WebService:
             if (found.driver, found.device_id or found.host) in have:
                 continue
             model = self.catalog.match_model(found.brand, found.model_name, found.driver)
+            key = printer_key(found.driver, found.device_id, found.host)
+            previous = retired_by_key.get(key)
+            entry_id = previous.id if previous and previous.id not in taken else unique_id(
+                found.name or found.model_name or found.host, taken
+            )
             entry = FleetEntry(
-                id=unique_id(found.name or found.model_name or found.host, taken),
-                name=found.name or found.model_name or found.host,
-                model_id=model.id if model else f"{slug(found.brand)}_{slug(found.model_name)}".strip("_"),
+                id=entry_id,
+                name=found.name or (previous.name if previous else "") or found.model_name or found.host,
+                model_id=model.id if model else (
+                    previous.model_id if previous else f"{slug(found.brand)}_{slug(found.model_name)}".strip("_")
+                ),
                 driver=found.driver,
                 host=found.host,
                 device_id=found.device_id,
@@ -518,12 +545,19 @@ class WebService:
                         if described.get(k)
                     },
                 }
+            if previous is not None:
+                retired = [e for e in retired if e.id != previous.id]
+                retired_by_key.pop(key, None)
+                if not entry.model and previous.model:
+                    entry.model = dict(previous.model)
             fleet.append(entry)
             taken.add(entry.id)
             have.add((entry.driver, entry.device_id or entry.host))
             added.append(entry.id)
-        save_fleet(fleet)
+        save_fleet(fleet, retired)
         self.catalog.set_fleet(fleet)
+        with self._lock:
+            self.new_printers = [row for row in self.new_printers if row.get("key") not in {printer_key(e.driver, e.device_id, e.host) for e in fleet}]
         threading.Thread(target=self.refresh_fleet, daemon=True).start()
         return {"ok": True, "added": added}
 
@@ -541,13 +575,80 @@ class WebService:
         return {"ok": True}
 
     def remove_printer(self, printer_id: str) -> dict[str, Any]:
-        """Stop tracking a printer. Its print history stays (re-adding it brings it back)."""
-        fleet = [e for e in load_fleet() if e.id != printer_id]
-        save_fleet(fleet)
+        """Stop tracking a printer. Its print history stays, and adding the same machine again reuses this id."""
+        fleet = load_fleet()
+        entry = next((e for e in fleet if e.id == printer_id), None)
+        fleet = [e for e in fleet if e.id != printer_id]
+        retired = load_retired()
+        if entry is not None:
+            key = printer_key(entry.driver, entry.device_id, entry.host)
+            retired = [e for e in retired if printer_key(e.driver, e.device_id, e.host) != key and e.id != entry.id]
+            retired.append(entry)
+        save_fleet(fleet, retired)
         self.catalog.set_fleet(fleet)
         with self._lock:
             self.fleet.pop(printer_id, None)
         return {"ok": True}
+
+    def _history_count(self, printer_id: str) -> int:
+        if not printer_id:
+            return 0
+        return len(self.history.list_for_printer(printer_id, limit=5000))
+
+    def refresh_new_printers(self) -> list[dict[str, Any]]:
+        """Printers answering on the network that are not in the fleet and not dismissed."""
+        ignored = {str(k) for k in self.settings.get("ignored_printers") or []}
+        pending = [
+            row
+            for row in self.discover()["printers"]
+            if not row.get("added") and not row.get("unsupported") and row.get("key") not in ignored
+        ]
+        with self._lock:
+            self.new_printers = pending
+        return pending
+
+    def new_printers_payload(self) -> dict[str, Any]:
+        with self._lock:
+            rows = list(self.new_printers)
+        return {"printers": rows}
+
+    def ignore_printer(self, key: str) -> dict[str, Any]:
+        """Stop reminding the user about one physical printer. It can still be added from Printers."""
+        key = str(key or "").strip()
+        if not key:
+            raise ValueError("Printer missing")
+        current = [str(k) for k in self.settings.get("ignored_printers") or []]
+        if key not in current:
+            current.append(key)
+        self.settings = save_settings({"ignored_printers": current})
+        with self._lock:
+            self.new_printers = [row for row in self.new_printers if row.get("key") != key]
+        return {"ok": True}
+
+    def removed_printers(self) -> dict[str, Any]:
+        """Printers the user took out of the fleet. Adding one from setup restores its history."""
+        active = {printer_key(e.driver, e.device_id, e.host) for e in load_fleet()}
+        rows = []
+        for entry in load_retired():
+            key = printer_key(entry.driver, entry.device_id, entry.host)
+            if key in active:
+                continue
+            model = self.catalog.models.get(entry.model_id)
+            rows.append(
+                {
+                    "id": entry.id,
+                    "name": entry.name,
+                    "driver": entry.driver,
+                    "host": entry.host,
+                    "device_id": entry.device_id,
+                    "model_name": model.name if model else (entry.model.get("name") or entry.model_id),
+                    "brand": model.brand if model else (entry.model.get("brand") or ""),
+                    "model_id": entry.model_id,
+                    "key": key,
+                    "history_count": self._history_count(entry.id),
+                }
+            )
+        return {"printers": rows}
 
     def models_payload(self) -> list[dict[str, Any]]:
         return [

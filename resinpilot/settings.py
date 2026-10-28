@@ -21,6 +21,8 @@ DEFAULTS: dict[str, Any] = {
     # Seconds between printer status refreshes.
     "poll_interval_s": 20.0,
     "theme": "system",
+    # Physical printers (driver:device id) the user asked not to be reminded about.
+    "ignored_printers": [],
 }
 
 
@@ -61,5 +63,9 @@ def save_settings(changes: dict[str, Any]) -> dict[str, Any]:
     current["today_layer_heights"] = heights
     current["watch_chitubox"] = bool(current["watch_chitubox"])
     current["poll_interval_s"] = max(5.0, current["poll_interval_s"])
+    ignored = current.get("ignored_printers") or []
+    if not isinstance(ignored, list):
+        raise ValueError("Ignored printers must be a list")
+    current["ignored_printers"] = [str(item).strip() for item in ignored if str(item).strip()][:200]
     settings_file().write_text(json.dumps(current, indent=2), encoding="utf-8")
     return current

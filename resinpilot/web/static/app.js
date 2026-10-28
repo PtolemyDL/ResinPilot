@@ -16,6 +16,8 @@ const state = {
   meta: null,
   settings: null,
   lastRecommend: null,
+  newPrinters: [],
+  removedPrinters: [],
 };
 
 function cssVar(name) {
@@ -476,13 +478,19 @@ const printersUi = { found: [], searching: false, searched: false };
 
 async function loadPrintersPanel() {
   try {
-    const [printers, settings] = await Promise.all([api("/api/printers"), api("/api/settings")]);
+    const [printers, settings, removed] = await Promise.all([
+      api("/api/printers"),
+      api("/api/settings"),
+      api("/api/fleet/removed"),
+    ]);
     state.printers = printers;
     state.settings = settings;
+    state.removedPrinters = removed.printers || [];
   } catch (err) {
     console.error(err);
   }
   renderFleetList();
+  renderRemoved();
   renderFound();
   renderSettings();
   if (!state.printers.length && !printersUi.searching && !printersUi.found.length) searchPrinters();
@@ -576,15 +584,63 @@ async function searchPrinters(target = "") {
   renderFound(target);
 }
 
+function historyNote(count) {
+  const n = Number(count) || 0;
+  if (!n) return "";
+  return ` · ${n} print${n === 1 ? "" : "s"} in History come${n === 1 ? "s" : ""} back with it`;
+}
+
+function renderRemoved() {
+  const root = $("removedList");
+  if (!root) return;
+  const seen = new Set((state.newPrinters || []).map((p) => p.key));
+  const rows = (state.removedPrinters || []).filter((p) => p.host && !seen.has(p.key));
+  if (!rows.length) {
+    root.innerHTML = "";
+    return;
+  }
+  root.innerHTML =
+    `<div class="caption" style="margin-top:14px">Removed from the fleet — add again from here to restore the same history</div>` +
+    rows
+      .map(
+        (p) => `<div class="fleet-row">
+          <div class="fr-main">
+            <div class="name">${esc(p.name)}</div>
+            <div class="caption">${esc([p.brand, p.model_name].filter(Boolean).join(" "))} · ${esc(p.host)}${historyNote(p.history_count)}</div>
+          </div>
+          <div class="fr-actions"><button class="btn sm" data-restore="${esc(p.key)}">Add</button></div>
+        </div>`
+      )
+      .join("");
+  root.querySelectorAll("[data-restore]").forEach((b) =>
+    b.addEventListener("click", () => restorePrinter(b.dataset.restore))
+  );
+}
+
+async function restorePrinter(key) {
+  const p = (state.removedPrinters || []).find((row) => row.key === key);
+  if (!p) return;
+  try {
+    await api("/api/fleet/printers", { method: "POST", body: JSON.stringify({ printers: [p] }) });
+    await reloadAfterFleetChange();
+    await pollNewPrinters();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+}
+
 function renderFound(target = "") {
   const root = $("foundList");
   if (!root || printersUi.searching) return;
-  const rows = printersUi.found || [];
+  const rows = printersUi.searched ? printersUi.found || [] : state.newPrinters || [];
   const errors = (printersUi.errors || []).map((e) => `<div class="caption warn">${esc(e)}</div>`).join("");
-  if (!printersUi.searched) {
+  if (!printersUi.searched && !rows.length) {
     root.innerHTML = `<div class="empty-note">Press Search network to look for printers.</div>`;
     return;
   }
+  const preface = !printersUi.searched
+    ? `<div class="caption">Found on your network and not in the fleet yet.</div>`
+    : "";
   if (!rows.length) {
     root.innerHTML =
       errors +
@@ -596,6 +652,7 @@ function renderFound(target = "") {
     return;
   }
   root.innerHTML =
+    preface +
     errors +
     rows
       .map(
@@ -604,7 +661,7 @@ function renderFound(target = "") {
           <div class="st-photo">${f.photo ? `<img src="${esc(photoSrc(f.photo))}" alt="" />` : ""}</div>
           <div class="fr-main">
             <input class="found-name" data-found-name="${i}" value="${esc(f.name || f.model_name)}" ${f.added || f.unsupported ? "disabled" : ""} />
-            <div class="caption">${esc(f.model_label)} · ${esc(f.host)}${f.firmware ? ` · firmware ${esc(f.firmware)}` : ""}${
+            <div class="caption">${esc(f.model_label)} · ${esc(f.host)}${historyNote(f.history_count)}${f.firmware ? ` · firmware ${esc(f.firmware)}` : ""}${
               f.unsupported
                 ? ` · ${esc(f.unsupported)}`
                 : f.known_model
@@ -625,15 +682,19 @@ async function addFoundPrinters() {
   document.querySelectorAll("[data-found]").forEach((cb) => {
     if (!cb.checked || cb.disabled) return;
     const i = Number(cb.dataset.found);
-    const f = printersUi.found[i];
+    const source = printersUi.searched ? printersUi.found : state.newPrinters;
+    const f = source[i];
     const name = document.querySelector(`[data-found-name="${i}"]`)?.value.trim();
     picks.push({ ...f, name: name || f.name });
   });
   if (!picks.length) return;
   try {
     await api("/api/fleet/printers", { method: "POST", body: JSON.stringify({ printers: picks }) });
-    printersUi.found = printersUi.found.map((f) => (picks.some((p) => p.host === f.host) ? { ...f, added: true } : f));
+    const addedHosts = new Set(picks.map((p) => p.host));
+    printersUi.found = (printersUi.found || []).map((f) => (addedHosts.has(f.host) ? { ...f, added: true } : f));
+    state.newPrinters = (state.newPrinters || []).filter((f) => !addedHosts.has(f.host));
     await reloadAfterFleetChange();
+    await pollNewPrinters();
   } catch (err) {
     alert(err.message || String(err));
   }
@@ -1902,6 +1963,77 @@ async function loadToday() {
   renderToday();
 }
 
+async function pollNewPrinters() {
+  try {
+    const res = await api("/api/fleet/new");
+    state.newPrinters = res.printers || [];
+  } catch (_) {
+    return;
+  }
+  renderNewPrinters();
+  const printersOpen = $("panel-printers")?.classList.contains("active");
+  if (printersOpen && !printersUi.searching && !printersUi.searched) {
+    renderFound();
+    renderRemoved();
+  }
+}
+
+function renderNewPrinters() {
+  const box = $("newPrinterNotice");
+  if (!box) return;
+  const rows = state.newPrinters || [];
+  if (!rows.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  box.hidden = false;
+  box.innerHTML = rows
+    .map(
+      (f) => `<div class="detect-row">
+        <span class="detect-label">New printer</span>
+        <strong>${esc(f.name || f.model_label || f.host)}</strong>
+        <span class="detect-meta">${esc([f.model_label, f.host].filter(Boolean).join(" · "))}${historyNote(f.history_count)}. Add it to the fleet?</span>
+        <span class="detect-action">
+          <button class="btn" data-notice-add="${esc(f.key)}">Add to fleet</button>
+          <label class="notice-check"><input type="checkbox" data-notice-ignore="${esc(f.key)}" /> Don't remind me again</label>
+        </span>
+      </div>`
+    )
+    .join("");
+  box.querySelectorAll("[data-notice-add]").forEach((b) =>
+    b.addEventListener("click", () => addNoticePrinter(b.dataset.noticeAdd))
+  );
+  box.querySelectorAll("[data-notice-ignore]").forEach((input) =>
+    input.addEventListener("change", () => {
+      if (input.checked) ignoreNoticePrinter(input.dataset.noticeIgnore);
+    })
+  );
+}
+
+async function addNoticePrinter(key) {
+  const f = (state.newPrinters || []).find((row) => row.key === key);
+  if (!f) return;
+  try {
+    await api("/api/fleet/printers", { method: "POST", body: JSON.stringify({ printers: [f] }) });
+    await reloadAfterFleetChange();
+    await pollNewPrinters();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+}
+
+async function ignoreNoticePrinter(key) {
+  try {
+    await api("/api/fleet/ignore", { method: "POST", body: JSON.stringify({ key }) });
+    state.newPrinters = (state.newPrinters || []).filter((row) => row.key !== key);
+    renderNewPrinters();
+    if ($("panel-printers")?.classList.contains("active") && !printersUi.searched) renderFound();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
+}
+
 async function boot() {
   applyTheme(localStorage.getItem(THEME_KEY) || "system");
   $("themeSelect").addEventListener("change", () => applyTheme($("themeSelect").value));
@@ -2009,10 +2141,12 @@ async function boot() {
   if (!printers.length) setPanel("printers");
   else if (linked && $(`panel-${linked}`)) setPanel(linked);
   pollDetected();
+  pollNewPrinters();
   setInterval(pollDetected, 5000);
   setInterval(async () => {
     try {
       await loadFleet(false);
+      await pollNewPrinters();
       const pickingResin = document.activeElement?.matches?.("[data-vat-resin]");
       if ($("panel-today").classList.contains("active") && !pickingResin) await loadToday();
       if ($("panel-history").classList.contains("active")) await loadHistory({ keepScroll: true });

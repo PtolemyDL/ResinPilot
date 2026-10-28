@@ -36,34 +36,63 @@ def fleet_file():
     return user_path("fleet.yaml")
 
 
-def load_fleet() -> list[FleetEntry]:
+def printer_key(driver: str, device_id: str = "", host: str = "") -> str:
+    """Stable identity for one physical printer: mainboard id, or its address when that is all we have."""
+    ident = (device_id or "").strip() or (host or "").strip()
+    return f"{(driver or 'sdcp').strip()}:{ident}"
+
+
+def _load_raw() -> dict[str, Any]:
     path = fleet_file()
     if not path.is_file():
-        return []
-    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        return {}
+    return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+
+def _entry_from(item: dict[str, Any]) -> FleetEntry | None:
+    if not item.get("id") or not item.get("model_id"):
+        return None
+    return FleetEntry(
+        id=str(item["id"]),
+        name=str(item.get("name") or item["id"]),
+        model_id=str(item["model_id"]),
+        driver=str(item.get("driver") or "sdcp"),
+        host=str(item.get("host") or ""),
+        device_id=str(item.get("device_id") or ""),
+        photo=str(item.get("photo") or ""),
+        model=dict(item.get("model") or {}),
+    )
+
+
+def load_fleet() -> list[FleetEntry]:
     out: list[FleetEntry] = []
-    for item in raw.get("printers") or []:
-        if not item.get("id") or not item.get("model_id"):
-            continue
-        out.append(
-            FleetEntry(
-                id=str(item["id"]),
-                name=str(item.get("name") or item["id"]),
-                model_id=str(item["model_id"]),
-                driver=str(item.get("driver") or "sdcp"),
-                host=str(item.get("host") or ""),
-                device_id=str(item.get("device_id") or ""),
-                photo=str(item.get("photo") or ""),
-                model=dict(item.get("model") or {}),
-            )
-        )
+    for item in _load_raw().get("printers") or []:
+        entry = _entry_from(item)
+        if entry is not None:
+            out.append(entry)
     return out
 
 
-def save_fleet(entries: list[FleetEntry]) -> None:
-    body = {"printers": [e.to_dict() for e in entries]}
+def load_retired() -> list[FleetEntry]:
+    """Printers the user removed. Kept so adding the same machine again uses the same id and history."""
+    out: list[FleetEntry] = []
+    for item in _load_raw().get("retired") or []:
+        entry = _entry_from(item)
+        if entry is not None:
+            out.append(entry)
+    return out
+
+
+def save_fleet(entries: list[FleetEntry], retired: list[FleetEntry] | None = None) -> None:
+    if retired is None:
+        retired = load_retired()
+    body = {
+        "printers": [e.to_dict() for e in entries],
+        "retired": [e.to_dict() for e in retired],
+    }
     fleet_file().write_text(
         "# Your printers. Edit freely; ResinPilot rewrites this file when you add or remove printers.\n"
+        "# 'retired' keeps the id of a printer you removed, so its history comes back if you add it again.\n"
         + yaml.safe_dump(body, sort_keys=False, allow_unicode=True),
         encoding="utf-8",
     )

@@ -327,6 +327,14 @@ button.btn:disabled { opacity: 0.5; cursor: default; }
 }
 .detect-action { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .detect-action .btn { padding: 5px 12px; font-size: 12px; }
+.notice-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--secondary);
+  cursor: pointer;
+}
 .detect-using { color: var(--green); font-size: 12px; font-weight: 600; }
 .detect-check {
   font-size: 12px;
@@ -1108,7 +1116,9 @@ tr.row-pending td.row-actions { background: color-mix(in srgb, var(--orange) 7%,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   display: none;
   align-items: center;
   justify-content: center;

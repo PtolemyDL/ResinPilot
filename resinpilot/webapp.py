@@ -167,6 +167,30 @@ def api_remove_printer(printer_id: str) -> dict[str, Any]:
     return get_service().remove_printer(printer_id)
 
 
+@app.get("/api/fleet/new")
+def api_new_printers() -> dict[str, Any]:
+    """Printers seen on the network that are not in the fleet and not dismissed."""
+    return get_service().new_printers_payload()
+
+
+class IgnorePrinterBody(BaseModel):
+    key: str = ""
+
+
+@app.post("/api/fleet/ignore")
+def api_ignore_printer(body: IgnorePrinterBody) -> dict[str, Any]:
+    try:
+        return get_service().ignore_printer(body.key)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/fleet/removed")
+def api_removed_printers() -> dict[str, Any]:
+    """Printers taken out of the fleet. Their history is still stored under the old id."""
+    return get_service().removed_printers()
+
+
 @app.get("/api/settings")
 def api_settings() -> dict[str, Any]:
     return get_service().settings_payload()

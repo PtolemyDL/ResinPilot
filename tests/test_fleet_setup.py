@@ -9,6 +9,8 @@ import pytest
 from resinpilot import drivers as drivers_mod
 from resinpilot.drivers import FoundPrinter
 from resinpilot.fleet import load_fleet, save_fleet
+from resinpilot.fleet import load_retired
+from resinpilot.models import PrintSettings
 from resinpilot.sdcp import PrinterLiveStatus
 from resinpilot.web_service import WebService
 
@@ -121,6 +123,39 @@ def test_add_rename_remove(service: WebService) -> None:
     service.remove_printer(unknown.id)
     assert unknown.id not in service.catalog.printers
     assert len(load_fleet()) == 1
+
+
+def test_remove_keeps_history_and_readd_uses_the_same_id(service: WebService) -> None:
+    found = service.discover()["printers"]
+    pid = service.add_printers([found[0]])["added"][0]
+    service.history.log_success(
+        pid,
+        "anycubic_clear",
+        0.05,
+        25.0,
+        PrintSettings(layer_height=0.05, normal_exposure_time=2.5, bottom_exposure_time=30),
+    )
+    service.remove_printer(pid)
+    assert pid not in service.catalog.printers
+    assert service.history.list_for_printer(pid)
+    assert any(e.id == pid for e in load_retired())
+    assert pid in service.removed_printers()["printers"][0]["id"]
+
+    again = service.add_printers([found[0]])["added"]
+    assert again == [pid]
+    assert service.history.list_for_printer(pid)
+    assert service.removed_printers()["printers"] == []
+
+
+def test_new_printer_notice_can_be_dismissed(service: WebService) -> None:
+    pending = service.refresh_new_printers()
+    assert {row["host"] for row in pending} == {"192.0.2.20", "192.0.2.21"}
+    service.ignore_printer(pending[0]["key"])
+    left = service.refresh_new_printers()
+    assert [row["host"] for row in left] == ["192.0.2.21"]
+    assert service.new_printers_payload()["printers"][0]["host"] == "192.0.2.21"
+    # Still listed by a manual search, so it can be added from setup.
+    assert any(row["host"] == "192.0.2.20" and not row["added"] for row in service.discover()["printers"])
 
 
 def test_settings_validate_and_apply(service: WebService) -> None:
