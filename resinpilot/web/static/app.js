@@ -8,6 +8,7 @@ const state = {
   models: [],
   fleet: null,
   today: null,
+  orbitPct: {},
   reportPrinterId: null,
   charts: {},
   curveKey: "",
@@ -85,6 +86,13 @@ function esc(s) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+function setBtnLabel(el, text) {
+  if (!el) return;
+  const label = el.querySelector(".btn-label");
+  if (label) label.textContent = text;
+  else el.textContent = text;
 }
 
 /** Fix legacy double /assets/assets/ paths from older server builds. */
@@ -301,7 +309,7 @@ function renderStatusBar() {
         <div class="st-top">
           <div class="st-photo">
             <img src="${esc(photoSrc(p.photo))}" alt="" onerror="this.style.visibility='hidden'" />
-            ${p.preview_url ? `<img class="st-plate" src="${esc(photoSrc(p.preview_url))}" alt="" title="Current / last plate" onerror="this.remove()" />` : ""}
+            ${printing && p.preview_url ? `<img class="st-plate" src="${esc(photoSrc(p.preview_url))}" alt="" title="Current plate" onerror="this.remove()" />` : ""}
           </div>
           <div class="st-main">
             <div class="st-name">${esc(p.short_name)}${p.is_room_ref ? ' <span class="st-tag" title="Its vat sensor gives the room temperature">room ref</span>' : ""}</div>
@@ -326,14 +334,65 @@ function renderStatusBar() {
   );
 }
 
+function formatLh(lh) {
+  return Number(lh).toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+/** Fitness-ring fill: print % while live; full when ready/done; empty otherwise. */
+function orbitTargetPct(kind, progressPct) {
+  if (kind === "printing") {
+    if (progressPct == null || Number.isNaN(progressPct)) return 0;
+    return Math.max(0, Math.min(100, Math.round(progressPct)));
+  }
+  if (kind === "idle" || kind === "finished") return 100;
+  return 0;
+}
+
+function animateOrbitRings(root) {
+  if (!root) return;
+  const orbits = root.querySelectorAll(".fc-orbit[data-orbit-target]");
+  if (!orbits.length) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      orbits.forEach((el) => {
+        const target = Number(el.dataset.orbitTarget);
+        if (Number.isNaN(target)) return;
+        el.style.setProperty("--pct", String(target));
+        const pid = el.closest("[data-printer-id]")?.dataset.printerId;
+        if (pid) state.orbitPct[pid] = target;
+      });
+    });
+  });
+}
+
+function bindFleetBoard(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-report]").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openReport(btn.dataset.report);
+    })
+  );
+  root.querySelectorAll("[data-vat-resin]").forEach((sel) => {
+    sel.addEventListener("click", (e) => e.stopPropagation());
+    sel.addEventListener("change", () => setVatResin(sel.dataset.vatResin, sel.value));
+  });
+  root.querySelectorAll(".fc-group .why").forEach((btn) => {
+    btn.addEventListener("click", (e) => e.stopPropagation());
+  });
+}
+
 function renderToday() {
   const root = $("todayCards");
   const data = state.today;
+  if (!root) return;
   if (!data) {
+    root.classList.remove("fleet-board");
     root.innerHTML = `<div class="card">Loading…</div>`;
     return;
   }
   if (!data.cards.length) {
+    root.classList.remove("fleet-board");
     $("roomNote").textContent = "";
     renderWelcome(root);
     renderAlerts();
@@ -346,52 +405,156 @@ function renderToday() {
     ? `Measured by ${ref ? ref.name : "a printer"}'s vat sensor; profiles follow it as the fleet refreshes`
     : "No printer is reporting a vat temperature — using the room temperature from Settings";
 
+  const fleetById = Object.fromEntries((state.fleet?.printers || []).map((p) => [p.printer_id, p]));
+  const jobs = state.fleet?.open_jobs || [];
   const shared = new Set(sharedTodayWarnings());
-  root.innerHTML = data.cards
-    .map((card) => {
-      const profiles = (card.profiles || [])
-        .map((pr) => {
+  const cardsById = Object.fromEntries((data.cards || []).map((c) => [c.printer_id, c]));
+  const order = (state.fleet?.printers || []).map((p) => p.printer_id);
+  const ids = order.length ? order.filter((id) => cardsById[id]) : (data.cards || []).map((c) => c.printer_id);
+
+  root.classList.add("fleet-board");
+  root.innerHTML = ids
+    .map((pid) => {
+      const card = cardsById[pid] || { printer_id: pid, profiles: [], short_name: pid };
+      const p = fleetById[pid] || card.status || {};
+      const kind = p.status_kind || "offline";
+      const printing = kind === "printing";
+      const pct = p.progress_pct != null ? Math.round(p.progress_pct) : null;
+      const targetPct = orbitTargetPct(kind, pct);
+      const fromPct = state.orbitPct[pid] != null ? state.orbitPct[pid] : 0;
+      const ringEmpty = targetPct === 0 && !printing;
+      const awaiting = jobs.find((j) => j.printer_id === pid && j.awaiting_outcome);
+      const report = awaiting
+        ? `<button class="btn orange" data-report="${esc(pid)}">Report outcome</button>`
+        : printing
+          ? `<button class="btn secondary" data-report="${esc(pid)}">Report early</button>`
+          : "";
+      const statusWord = (p.status_label || "…").replace(/\s+\d+%$/, "");
+      const detailRaw = p.print_substatus || p.filename || (kind === "offline" ? p.error_message || "" : "");
+      const detail =
+        detailRaw && detailRaw.trim().toLowerCase() !== String(statusWord).trim().toLowerCase() ? detailRaw : "";
+      const filmMax = Number(p.film?.max || p.release_film_max || 0);
+      const filmCycles = p.film?.cycles != null ? Number(p.film.cycles) : null;
+      const filmPct = filmCycles != null && filmMax > 0 ? Math.min(100, Math.round((100 * filmCycles) / filmMax)) : null;
+      const filmLevel = esc(p.film?.level || "ok");
+      const resinId = p.vat_resin_id || card.resin_id || "";
+      const opts = state.resins
+        .map((r) => `<option value="${esc(r.id)}" ${r.id === resinId ? "selected" : ""}>${esc(r.name)}</option>`)
+        .join("");
+      const since = p.vat_resin_set_at ? `since ${new Date(p.vat_resin_set_at).toLocaleDateString()}` : "not set yet";
+      const photo = p.photo || card.photo;
+      const preview = p.preview_url;
+      const shortName = p.short_name || card.short_name || pid;
+      const isLead = p.is_room_ref || card.is_room_ref;
+      const runs = card.resin_runs || 0;
+      const basis = resinBasisText(card);
+      const timeLeft = printing ? durationText(p.time_left_s) : "";
+      const stageDetail = [detail, timeLeft].filter(Boolean).join(" · ");
+
+      const groupRows = [];
+      if (p.temp_display) {
+        groupRows.push(`<div class="fc-row" title="Room / vat · UV">
+          <span class="fc-row-label">Climate</span>
+          <span class="fc-row-value">${esc(p.temp_display)}</span>
+        </div>`);
+      }
+      if (filmCycles != null) {
+        groupRows.push(`<div class="fc-row film ${filmLevel}" title="${esc(p.film?.warning || "")}">
+          <span class="fc-row-label">Film</span>
+          <span class="fc-row-trailing">
+            <span class="fc-row-value">${filmCycles.toLocaleString()}</span>
+            ${filmPct != null ? `<span class="fc-row-bar"><i style="width:${filmPct}%"></i></span>` : ""}
+          </span>
+        </div>`);
+      }
+      groupRows.push(`<div class="fc-row resin">
+        <span class="fc-row-label">Resin <span class="swatch" style="background:${esc(p.vat_resin_swatch || "transparent")}"></span></span>
+        <select data-vat-resin="${esc(pid)}" title="Set the resin in this printer's tank (${esc(since)})">${opts}</select>
+      </div>`);
+
+      let groupFoot = "";
+      const profiles = card.profiles || [];
+      if (!profiles.length) {
+        groupRows.push(`<div class="fc-row">
+          <span class="fc-row-label">Today</span>
+          <span class="fc-row-value muted">No settings yet</span>
+        </div>`);
+      } else {
+        let cuePr = null;
+        profiles.forEach((pr) => {
+          const lhLabel = formatLh(pr.layer_height);
           if (pr.error) {
-            return `<div class="profile"><div class="lh">${pr.layer_height.toFixed(3)} mm</div>
-              <div class="profile-note warn" title="${esc(pr.error)}">${esc(pr.error)}</div></div>`;
+            groupRows.push(`<div class="fc-row">
+              <span class="fc-row-label">${esc(lhLabel)} mm</span>
+              <span class="fc-row-value warn" title="${esc(pr.error)}">${esc(pr.error)}</span>
+            </div>`);
+            return;
           }
+          if (!cuePr) cuePr = pr;
+          groupRows.push(`<div class="fc-row exposure layer">
+            <span class="fc-row-label">${esc(lhLabel)} mm</span>
+            <span class="fc-row-trailing">
+              <span class="fc-row-value tabular" title="Layer exposure">${Number(pr.normal_exposure_time).toFixed(2)}<span class="fc-row-unit">s</span></span>
+              <span class="fc-row-value tabular" title="Bottom exposure" style="color:var(--orange)">${Number(pr.bottom_exposure_time).toFixed(1)}<span class="fc-row-unit">s bot</span></span>
+            </span>
+          </div>`);
+        });
+        if (cuePr && !cuePr.error) {
           const why = [
-            ...(pr.warnings || []),
-            pr.exposure_detail,
-            pr.part_detail,
-            pr.bottom_detail,
-            pr.source_detail,
-            `Confidence: ${pr.confidence}`,
+            ...(cuePr.warnings || []),
+            cuePr.exposure_detail,
+            cuePr.part_detail,
+            cuePr.bottom_detail,
+            cuePr.source_detail,
+            `Confidence: ${cuePr.confidence}`,
           ]
             .filter(Boolean)
             .join("\n\n");
-          return `<div class="profile">
-            <div class="lh">${pr.layer_height.toFixed(3)} mm<span class="why" title="${esc(why)}">why?</span></div>
-            <div class="exp-row">
-              <div class="exp-n"><span class="exp-label">Layer</span>${pr.normal_exposure_time.toFixed(2)}s</div>
-              <div class="exp-b"><span class="exp-label">Bottom</span>${pr.bottom_exposure_time.toFixed(1)}s</div>
-            </div>
-            <div class="more">${pr.bottom_layer_count} bottom · ${pr.transition_layer_count} transition · rest ${pr.rest_time_after_retract.toFixed(1)}s</div>
-            ${profileCue(pr, shared)}
+          const basisLabel = runs >= 5 ? `Learned · ${runs} runs` : "Starting point";
+          const metaBits = [
+            `${cuePr.bottom_layer_count} bottom`,
+            `${cuePr.transition_layer_count} transition`,
+            `rest ${Number(cuePr.rest_time_after_retract).toFixed(1)}s`,
+          ];
+          groupFoot = `<div class="fc-group-foot">
+            <span class="fc-group-meta">${esc(metaBits.join(" · "))}</span>
+            <span class="fc-group-meta ${runs >= 5 ? "learned" : ""}" title="${esc(basis)}">${basisLabel}</span>
+            <button type="button" class="why" title="${esc(why)}" tabindex="-1">why?</button>
+            ${profileCue(cuePr, shared)}
           </div>`;
-        })
-        .join("");
+        }
+      }
 
-      const swatch = (state.resins.find((r) => r.id === card.resin_id) || {}).swatch || "";
-      const basis = resinBasisText(card);
-      const runs = card.resin_runs || 0;
-      return `<div class="card today-card">
-        <div class="tc-head">
-          <div class="name">${esc(card.short_name)}</div>
-          <div class="tc-resin" title="${esc(basis)}">
-            ${swatch ? `<span class="swatch" style="background:${esc(swatch)}"></span>` : ""}<strong>${esc(card.resin_name)}</strong>
-            <span class="tc-basis ${runs >= 5 ? "learned" : ""}">${runs >= 5 ? `Learned · ${runs} runs` : "Starting point"}</span>
+      const backdropSrc = printing && preview ? preview : "";
+      return `<div class="card fleet-card ${esc(kind)}${backdropSrc ? " has-backdrop" : ""}" data-printer-id="${esc(pid)}">
+        ${backdropSrc ? `<div class="fc-backdrop" aria-hidden="true"><img src="${esc(photoSrc(backdropSrc))}" alt="" onerror="this.closest('.fleet-card')?.classList.remove('has-backdrop'); this.remove()" /></div>` : ""}
+        <div class="fc-orbit${printing ? " is-live" : ""}${ringEmpty ? " is-empty" : ""}" style="--pct:${fromPct}" data-orbit-target="${targetPct}">
+          <div class="fc-photo">
+            <img src="${esc(photoSrc(photo))}" alt="" onerror="this.style.visibility='hidden'" />
+            ${backdropSrc ? `<img class="st-plate" src="${esc(photoSrc(backdropSrc))}" alt="" title="Current plate" onerror="this.remove()" />` : ""}
+          </div>
+          ${printing && pct != null ? `<div class="fc-orbit-pct">${pct}<span>%</span></div>` : ""}
+        </div>
+        <div class="fc-chrome">
+          <div class="fc-name">${esc(shortName)}${isLead ? ' <span class="st-tag">room ref</span>' : ""}</div>
+          <div class="fc-actions">${report}</div>
+        </div>
+        <div class="fc-body">
+          <div class="fc-hero">
+            <div class="fc-status">${esc(statusWord)}</div>
+            ${stageDetail ? `<div class="fc-detail" title="${esc(stageDetail)}">${esc(stageDetail)}</div>` : ""}
+          </div>
+          <div class="fc-group">
+            ${groupRows.join("")}
+            ${groupFoot}
           </div>
         </div>
-        <div class="tc-profiles">${profiles}</div>
       </div>`;
     })
     .join("");
+
+  bindFleetBoard(root);
+  animateOrbitRings(root);
   renderAlerts();
 }
 
@@ -431,7 +594,7 @@ async function setVatResin(printerId, resinId) {
 async function importPrinterHistory() {
   const btn = $("btnImportPrinters");
   btn.disabled = true;
-  btn.textContent = "Reading printers…";
+  setBtnLabel(btn, "Reading printers…");
   try {
     const preview = await api("/api/history/import-printers", {
       method: "POST",
@@ -452,7 +615,7 @@ async function importPrinterHistory() {
         "Prints already in History are left alone. You can fix the resin of any run in History afterwards."
     );
     if (!ok) return;
-    btn.textContent = "Importing…";
+    setBtnLabel(btn, "Importing…");
     const res = await api("/api/history/import-printers", {
       method: "POST",
       body: JSON.stringify({ dry_run: false }),
@@ -463,7 +626,7 @@ async function importPrinterHistory() {
     alert(err.message || String(err));
   } finally {
     btn.disabled = false;
-    btn.textContent = "Import printer history";
+    setBtnLabel(btn, "Import printer history");
   }
 }
 
@@ -563,7 +726,7 @@ async function searchPrinters(target = "") {
   printersUi.searching = true;
   if (btn) {
     btn.disabled = true;
-    btn.textContent = "Searching…";
+    setBtnLabel(btn, "Searching…");
   }
   $("foundList").innerHTML = `<div class="caption">${target ? `Asking ${esc(target)}…` : "Looking for printers on your network…"}</div>`;
   try {
@@ -578,7 +741,7 @@ async function searchPrinters(target = "") {
     printersUi.searched = true;
     if (btn) {
       btn.disabled = false;
-      btn.textContent = "Search network";
+      setBtnLabel(btn, "Search network");
     }
   }
   renderFound(target);

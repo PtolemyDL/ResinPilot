@@ -6,11 +6,124 @@
   <title>ResinPilot</title>
   <link rel="icon" href="/assets/branding/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="/assets/branding/favicon.png" />
-  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="/static/app.css?v=fleet-1" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <div class="app">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" class="icon-sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-today" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2.5v2M12 19.5v2M4.93 4.93l1.4 1.4M17.67 17.67l1.4 1.4M2.5 12h2M19.5 12h2M4.93 19.07l1.4-1.4M17.67 6.33l1.4-1.4"/>
+  </symbol>
+  <symbol id="i-insights" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M5 19V10M12 19V5M19 19v-7"/>
+  </symbol>
+  <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8"/>
+    <path d="M12 8v4l2.5 1.5"/>
+  </symbol>
+  <symbol id="i-sop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 6h10M9 12h10M9 18h10"/>
+    <path d="M5 6.5l1 1 2-2.5M5 12.5l1 1 2-2.5M5 18.5l1 1 2-2.5"/>
+  </symbol>
+  <symbol id="i-setup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </symbol>
+  <symbol id="i-manual" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 7h9M17 7h3M4 17h3M11 17h9"/>
+    <circle cx="15" cy="7" r="2.25"/>
+    <circle cx="9" cy="17" r="2.25"/>
+  </symbol>
+  <symbol id="i-sla" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3s-6.5 7.2-6.5 11.2a6.5 6.5 0 0 0 13 0C18.5 10.2 12 3 12 3z"/>
+  </symbol>
+  <symbol id="i-fdm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5z"/>
+    <path d="M12 12 20 8M12 12v8.5M12 12 4 8"/>
+  </symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 12a8 8 0 1 1-2.3-5.6"/>
+    <path d="M20 4v5.5h-5.5"/>
+  </symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="6.5"/>
+    <path d="m20 20-3.8-3.8"/>
+  </symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21M6.2 6.2l2.5 2.5M15.3 15.3l2.5 2.5M6.2 17.8l2.5-2.5M15.3 8.7l2.5-2.5"/>
+  </symbol>
+  <symbol id="i-printer" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 8V4h10v4"/>
+    <rect x="5" y="14" width="14" height="6" rx="1.5"/>
+    <path d="M5 10h14a2 2 0 0 1 2 2v2H3v-2a2 2 0 0 1 2-2z"/>
+    <circle cx="17" cy="12" r="0.9" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-box" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 3.5 20 8v8l-8 4.5L4 16V8l8-4.5z"/>
+    <path d="M12 12.2 20 8M12 12.2v8.3M12 12.2 4 8"/>
+  </symbol>
+  <symbol id="i-profile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 4h7l3 3v13H8V4z"/>
+    <path d="M15 4v3h3M10 12h6M10 16h4"/>
+  </symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="8" y="8" width="11" height="11" rx="2"/>
+    <path d="M6 15V6a2 2 0 0 1 2-2h9"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 6 9 17l-5-5"/>
+  </symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 6l12 12M18 6 6 18"/>
+  </symbol>
+  <symbol id="i-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 4v11M8 11l4 4 4-4"/>
+    <path d="M5 19h14"/>
+  </symbol>
+  <symbol id="i-external" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-4"/>
+    <path d="M14 5h5v5M19 5l-9 9"/>
+  </symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3.5 8.5 4.5L12 12.5 3.5 8 12 3.5z"/>
+    <path d="m3.5 12.5 8.5 4.5 8.5-4.5"/>
+    <path d="m3.5 16.5 8.5 4.5 8.5-4.5"/>
+  </symbol>
+  <symbol id="i-timeline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 19V5M4 19h16"/>
+    <path d="m8 14 3.2-4.2 2.8 2.2L18 7"/>
+  </symbol>
+  <symbol id="i-parts" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 3.5 5.5 9.5H6.5L12 3.5z"/>
+    <circle cx="17.5" cy="17" r="3"/>
+    <rect x="3.5" y="14" width="6" height="6" rx="1"/>
+  </symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 6h12M8 12h12M8 18h12"/>
+    <circle cx="4.5" cy="6" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="4.5" cy="12" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="4.5" cy="18" r="1" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-fleet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3.5" y="4" width="6" height="16" rx="1.5"/>
+    <rect x="14.5" y="4" width="6" height="11" rx="1.5"/>
+  </symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 18h6M10 21h4"/>
+    <path d="M12 3a6 6 0 0 0-3.5 10.8c.6.5 1 1.2 1.1 2.2h4.8c.1-1 .5-1.7 1.1-2.2A6 6 0 0 0 12 3z"/>
+  </symbol>
+  <symbol id="i-fail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8"/>
+    <path d="m9 9 6 6M15 9l-6 6"/>
+  </symbol>
+  <symbol id="i-week" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="4" y="5" width="16" height="15" rx="2"/>
+    <path d="M8 3v4M16 3v4M4 10h16"/>
+  </symbol>
+</svg>
+<div class="app">
     <div class="top">
       <div class="brand-block">
         <a class="brand-lockup" href="/">ResinPilot</a>
@@ -24,7 +137,7 @@
             <option value="light">Light</option>
             <option value="dark">Dark</option>
           </select>
-          <a class="btn secondary" id="repoLink" href="#" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn secondary" id="repoLink" href="#" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-external"></use></svg>GitHub</a>
         </div>
       </div>
     </div>
@@ -32,11 +145,11 @@
     <div class="nav-row">
       <nav class="nav seg" id="nav">
         <span class="seg-pill" aria-hidden="true"></span>
-        <button data-panel="today" class="active">Today</button>
-        <button data-panel="charts">Insights</button>
-        <button data-panel="history">History</button>
-        <button data-panel="printers">Printers</button>
-        <button data-panel="calibrate">Manual</button>
+        <button data-panel="today" class="active"><svg class="ico" aria-hidden="true"><use href="#i-today"></use></svg>Today</button>
+        <button data-panel="charts"><svg class="ico" aria-hidden="true"><use href="#i-insights"></use></svg>Insights</button>
+        <button data-panel="history"><svg class="ico" aria-hidden="true"><use href="#i-history"></use></svg>History</button>
+        <button data-panel="printers"><svg class="ico" aria-hidden="true"><use href="#i-printer"></use></svg>Printers</button>
+        <button data-panel="calibrate"><svg class="ico" aria-hidden="true"><use href="#i-manual"></use></svg>Manual</button>
       </nav>
     </div>
 
@@ -57,7 +170,7 @@
           <option value="bulky">Bulky (≥ 700 mm²)</option>
         </select>
         <span class="caption room-note" id="roomNote"></span>
-        <button class="btn secondary" id="btnRefresh">Refresh</button>
+        <button class="btn secondary" id="btnRefresh"><svg class="ico" aria-hidden="true"><use href="#i-refresh"></use></svg><span class="btn-label">Refresh</span></button>
       </div>
       <div id="detectBanner" class="detect" hidden></div>
       <div id="todayCards"></div>
@@ -67,7 +180,7 @@
     <section class="panel fit" id="panel-calibrate">
       <div class="calibrate-grid">
         <div class="card calibrate-form">
-          <h2>Manual settings</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-manual"></use></svg>Manual settings</h2>
           <div class="caption">Work out Chitubox settings for one printer + resin by hand — Today already applies all of this automatically</div>
           <div class="cal-hero" id="calHero">
             <img id="calPrinterPhoto" alt="" hidden />
@@ -121,15 +234,15 @@
               </select>
             </div>
           </div>
-          <button class="btn" id="btnRecommend" style="margin-top:14px;width:100%">Recommend</button>
+          <button class="btn" id="btnRecommend" style="margin-top:14px;width:100%"><svg class="ico" aria-hidden="true"><use href="#i-spark"></use></svg>Recommend</button>
           <div class="cal-actions">
-            <button class="btn secondary" id="btnCopySettings">Copy settings</button>
-            <button class="btn green" id="btnCalSuccess">Report success</button>
-            <button class="btn red" id="btnCalFail">Report fail</button>
+            <button class="btn secondary" id="btnCopySettings"><svg class="ico" aria-hidden="true"><use href="#i-copy"></use></svg>Copy settings</button>
+            <button class="btn green" id="btnCalSuccess"><svg class="ico" aria-hidden="true"><use href="#i-check"></use></svg>Report success</button>
+            <button class="btn red" id="btnCalFail"><svg class="ico" aria-hidden="true"><use href="#i-x"></use></svg>Report fail</button>
           </div>
         </div>
         <div class="card calibrate-result">
-          <h2>Profile</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-profile"></use></svg>Profile</h2>
           <div class="caption" id="calConfidence">Run Recommend to see exposures</div>
           <div class="cal-resin-row">
             <img id="calResinPhoto" alt="" hidden />
@@ -152,25 +265,25 @@
     <section class="panel fit" id="panel-printers">
       <div class="printers-grid">
         <div class="card">
-          <h2>Your printers</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-printer"></use></svg>Your printers</h2>
           <div class="caption">Printers ResinPilot watches and makes profiles for. Removing one keeps its print history, and adding that printer again from the list below brings the history back.</div>
           <div id="fleetList"></div>
           <div id="removedList"></div>
         </div>
         <div class="card">
           <div class="row" style="justify-content:space-between;align-items:center">
-            <h2>Find printers</h2>
-            <button class="btn" id="btnSearchPrinters">Search network</button>
+            <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>Find printers</h2>
+            <button class="btn" id="btnSearchPrinters"><svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg><span class="btn-label">Search network</span></button>
           </div>
           <div class="caption">Finds network-connected resin printers (SDCP: ELEGOO Mars/Saturn and other ChiTu-board printers) on the same network as this computer. A printer you have not added also raises a notice; check “Don’t remind me again” on that notice to hide it.</div>
           <div class="add-ip">
             <input id="addIp" placeholder="Printer IP address, e.g. 192.168.1.50" />
-            <button class="btn secondary" id="btnAddByIp">Add by IP</button>
+            <button class="btn secondary" id="btnAddByIp"><svg class="ico" aria-hidden="true"><use href="#i-search"></use></svg>Add by IP</button>
           </div>
           <div id="foundList"></div>
         </div>
         <div class="card">
-          <h2>Settings</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-setup"></use></svg>Settings</h2>
           <div class="settings-form" id="settingsForm"></div>
         </div>
       </div>
@@ -183,10 +296,10 @@
         <select id="chartPrinter"></select>
         <label for="chartResinFilter">Resin</label>
         <select id="chartResinFilter"><option value="">All resins</option></select>
-        <button class="btn secondary" id="btnChartRefresh">Refresh</button>
+        <button class="btn secondary" id="btnChartRefresh"><svg class="ico" aria-hidden="true"><use href="#i-refresh"></use></svg>Refresh</button>
       </div>
       <div class="card">
-        <h2>Fleet comparison</h2>
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-fleet"></use></svg>Fleet comparison</h2>
         <div class="caption">All printers side by side · per-week figures cover the last 4 weeks · typical settings are medians at each printer's most-used layer height</div>
         <div style="overflow:auto">
           <table class="data" id="fleetTable"><thead></thead><tbody></tbody></table>
@@ -194,48 +307,48 @@
         <div class="chart-box"><canvas id="chartFleetWeekly"></canvas></div>
       </div>
       <div class="kpis" id="chartKpis">
-        <div class="kpi"><div class="label">Runs</div><div class="value" id="ckRuns">0</div></div>
-        <div class="kpi"><div class="label">Success</div><div class="value green" id="ckRate">0%</div></div>
-        <div class="kpi"><div class="label">Prints / week</div><div class="value blue" id="ckPerWeek">—</div></div>
-        <div class="kpi"><div class="label">Print hours / week</div><div class="value blue" id="ckHours">—</div></div>
-        <div class="kpi"><div class="label">Avg print time</div><div class="value orange" id="ckTime">—</div></div>
-        <div class="kpi" id="ckTempKpi"><div class="label">Avg measured temp</div><div class="value" id="ckTemp">—</div></div>
+        <div class="kpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-list"></use></svg>Runs</div><div class="value" id="ckRuns">0</div></div>
+        <div class="kpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-check"></use></svg>Success</div><div class="value green" id="ckRate">0%</div></div>
+        <div class="kpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-week"></use></svg>Prints / week</div><div class="value blue" id="ckPerWeek">—</div></div>
+        <div class="kpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-timeline"></use></svg>Print hours / week</div><div class="value blue" id="ckHours">—</div></div>
+        <div class="kpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-history"></use></svg>Avg print time</div><div class="value orange" id="ckTime">—</div></div>
+        <div class="kpi" id="ckTempKpi"><div class="label kpi-label"><svg class="ico" aria-hidden="true"><use href="#i-sla"></use></svg>Avg measured temp</div><div class="value" id="ckTemp">—</div></div>
       </div>
       <div class="card">
-        <h2>Insights & summary</h2>
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-bulb"></use></svg>Insights & summary</h2>
         <div class="caption">What the logged runs suggest for this printer</div>
         <div class="insights" id="insights">Loading…</div>
       </div>
       <div class="card">
-        <h2>Layer exposure vs layer height</h2>
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-layers"></use></svg>Layer exposure vs layer height</h2>
         <div class="caption" id="curveCaption">Cure curve for each resin. A colder vat needs more time, and a pigmented resin changes more with layer height than a clear one.</div>
         <div class="curve-controls" id="curveTemps"></div>
         <div class="curve-controls" id="curveResins"></div>
         <div class="chart-box curve"><canvas id="chartCurves"></canvas></div>
       </div>
       <div class="card">
-        <h2>Settings timeline</h2>
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-timeline"></use></svg>Settings timeline</h2>
         <div class="caption">Layer exposure (left axis) and bottom exposure (right axis) for every print · red points are fails · hover for the file and failure reason</div>
         <div class="chart-box tall"><canvas id="chartTimeline"></canvas></div>
       </div>
       <div class="chart-grid">
         <div class="card">
-          <h2>Recipe map</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-insights"></use></svg>Recipe map</h2>
           <div class="caption" id="recipeCaption">Bubble size = number of runs at that layer height and exposure · stars = today's recommendation</div>
           <div class="chart-box"><canvas id="chartRecipes"></canvas></div>
         </div>
         <div class="card">
-          <h2>Bottom exposure distribution</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-layers"></use></svg>Bottom exposure distribution</h2>
           <div class="caption" id="bottomCaption">Runs per 5 s bottom exposure bucket, split by outcome</div>
           <div class="chart-box"><canvas id="chartBottom"></canvas></div>
         </div>
         <div class="card">
-          <h2>Usage per week</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-week"></use></svg>Usage per week</h2>
           <div class="caption">Prints (bars) and print hours (line) per calendar week</div>
           <div class="chart-box"><canvas id="chartWeekly"></canvas></div>
         </div>
         <div class="card">
-          <h2>Failure breakdown</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-fail"></use></svg>Failure breakdown</h2>
           <div class="caption">Why prints failed, from the Report dialog</div>
           <div class="chart-box"><canvas id="chartFailures"></canvas></div>
           <div class="empty-note" id="failuresEmpty" hidden>No failed prints logged for this printer.</div>
@@ -243,7 +356,7 @@
       </div>
       <div class="card">
         <div class="row" style="justify-content:space-between;align-items:center">
-          <h2>Parts</h2>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-parts"></use></svg>Parts</h2>
           <button class="btn secondary sm" id="btnShapeScan" type="button" hidden>Scan printer files now</button>
         </div>
         <div class="caption">Prints grouped by part (from file names; versions of the same model share a part) · size from resin volume ÷ print height · shape from the sliced file's layers (files still on the printers are scanned automatically) · Rename to fix a name, or give two parts the same name to merge them</div>
@@ -253,7 +366,7 @@
         </div>
       </div>
       <div class="card">
-        <h2>Run details</h2>
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-list"></use></svg>Run details</h2>
         <div class="caption">Filename, temps, duration, layers, notes</div>
         <div style="overflow:auto">
           <table class="data" id="chartTable">
@@ -268,8 +381,8 @@
     <section class="panel" id="panel-history">
       <div class="card">
         <div class="row" style="justify-content:space-between;align-items:center">
-          <h2>History log</h2>
-          <button class="btn secondary" id="btnImportPrinters">Import printer history</button>
+          <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-history"></use></svg>History log</h2>
+          <button class="btn secondary" id="btnImportPrinters"><svg class="ico" aria-hidden="true"><use href="#i-import"></use></svg><span class="btn-label">Import printer history</span></button>
         </div>
         <div class="caption" id="histStats"></div>
         <div class="hist-filters" id="histFilters">
@@ -357,6 +470,6 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=fleet-1"></script>
 </body>
 </html>
