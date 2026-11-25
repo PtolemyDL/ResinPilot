@@ -20,7 +20,9 @@ from .charts import (
     build_history_log,
     build_insights,
     failure_breakdown,
+    failure_diagnostics,
     fleet_comparison,
+    print_timeline,
     format_run_rows,
     part_family_summary,
     printer_kpis,
@@ -1095,6 +1097,7 @@ class WebService:
             "bottom_bins": bottom_distribution(records),
             "weekly": weekly_usage(records),
             "failures": failure_breakdown(records),
+            "diagnostics": failure_diagnostics(records),
             "curves": self.engine.exposure_curves(printer_id, resin_id),
             "rows": self._rows_with_history_numbers(records, names),
         }
@@ -1139,6 +1142,15 @@ class WebService:
         for row in rows:
             row["id"] = numbers.get(row["report_id"], row["id"])
         return rows
+
+    def timeline(self, hours: float = 12.0) -> dict[str, Any]:
+        hours = min(max(float(hours), 1.0), 72.0)
+        return print_timeline(
+            self.history.list_recent(outcome=None, limit=200),
+            self.history.list_unreported(),
+            self.history.list_open_jobs(),
+            hours=hours,
+        )
 
     def fleet_charts(self) -> dict[str, Any]:
         names = {p.id: p.name for p in self.catalog.printers.values()}

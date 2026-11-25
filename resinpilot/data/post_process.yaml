@@ -1,0 +1,361 @@
+# Post-processing SOP per resin, for the shop's ELEGOO Mercury Plus 3.0 V2 / Mercury X:
+# two IPA baths (dirty, then clean), dry, UV cure in the station with the lid on.
+# Times come from the manufacturer sources listed under each SOP. Where a manufacturer gives a range
+# or two values, the step detail says so. Shop practice wins where noted (Siraya Sculpt UV time).
+#
+# step fields: key (stable, used for the card checkboxes), label, rail (very short: shown in the
+# card's time rail), time (spoken form), detail (one or two sentences), optional: true for extras.
+
+sops:
+- id: elegoo_8k_standard
+  name: ELEGOO 8K Standard
+  resins: [elegoo_8k_standard_space_grey, elegoo_8k_standard_red_clay, elegoo_standard_3_space_grey]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA. Run the wash for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Move the part to the fresh IPA for 1 minute. Never put it back in the dirty bath.
+  - key: brush
+    label: Brush corners
+    rail: "↻"
+    time: if sticky
+    detail: Soft brush into corners and holes, then rinse with clean IPA from the squeeze bottle. Stop when the surface is no longer sticky.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air, or air dry about 30 minutes. A wet part cures with white residue and stays sticky.
+  - key: cure
+    label: UV cure
+    rail: "2′"
+    time: 2 min
+    detail: Centre of the turntable, lid on. 2 minutes for parts under 30 mm; up to 5 minutes for large or thick parts.
+  cautions:
+  - More UV is not better. Over-curing turns the part yellow and brittle.
+  sources:
+  - label: ELEGOO Mercury Plus 3.0 manual
+    url: https://www.123-3d.ie/pdf/DAR01893_Manual_EN.pdf
+  - label: ELEGOO, Get started in resin printing
+    url: https://global.elegoo.com/blogs/3d-printer-user-guide/getstarted-in-resin-printing
+  - label: ELEGOO resin FAQ
+    url: https://wiki.elegoo.com/filaments-resins/resins/faq
+
+- id: elegoo_abs_like_3
+  name: ELEGOO ABS-like 3.0
+  resins: [elegoo_abs_like_3_black, elegoo_abs_like_3pro_black]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA. Run the wash for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Move the part to the fresh IPA for 1 minute. Never put it back in the dirty bath.
+  - key: brush
+    label: Brush corners
+    rail: "↻"
+    time: if sticky
+    detail: Soft brush into corners, snap-fit slots and holes, then rinse with clean IPA from the squeeze bottle.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air, or air dry about 30 minutes. Leftover IPA leaves white residue and can crack the part.
+  - key: cure
+    label: UV cure
+    rail: "2′"
+    time: 2 min
+    detail: Centre of the turntable, lid on. 2 minutes for small parts, up to 5 for large ones. It should feel hard, not tacky.
+  cautions:
+  - Too little or too much UV both make it brittle. Over-curing also yellows it.
+  sources:
+  - label: ELEGOO Mercury Plus 3.0 manual
+    url: https://www.123-3d.ie/pdf/DAR01893_Manual_EN.pdf
+  - label: ELEGOO, Beginner's guide to resin printing
+    url: https://www.elegoo.com/blogs/3d-printer-user-guide/how-to-do-resin-3d-printing-beginners-guide
+  - label: ELEGOO resin FAQ
+    url: https://wiki.elegoo.com/filaments-resins/resins/faq
+
+- id: elegoo_abs_like_3_translucent
+  name: ELEGOO ABS-like 3.0 Translucent
+  resins: [elegoo_abs_like_3_translucent, elegoo_abs_like_3pro_translucent]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "1′"
+    time: 1 min
+    detail: Wash basket in the used IPA, 1 minute only. Clear resin turns cloudy if it soaks.
+  - key: clean
+    label: Clean IPA
+    rail: 30s
+    time: 30 s
+    detail: Quick dip in the fresh IPA. Never back into the dirty bath.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air, then air dry until no IPA is left, inside holes too. Leftover IPA cures as a white haze.
+  - key: cure
+    label: UV cure
+    rail: "1′"
+    time: 1 to 2 min
+    detail: Centre of the turntable, lid on. Start with 1 minute and add 1 more only if it is still soft. Longer turns it yellow.
+  - key: coat
+    label: Clear coat
+    rail: coat
+    time: optional
+    optional: true
+    detail: For a glassy look, spray a UV-resistant clear varnish. It also slows yellowing.
+  cautions:
+  - Keep finished parts out of direct sunlight; UV keeps yellowing clear resin.
+  sources:
+  - label: ELEGOO, Translucent resin turning yellow
+    url: https://www.elegoo.com/blogs/3d-printer-user-guide/translucent-resin-is-easily-turning-yellow
+  - label: ELEGOO resin FAQ
+    url: https://wiki.elegoo.com/filaments-resins/resins/faq
+
+- id: anycubic_high_clear
+  name: Anycubic High Clear
+  resins: [anycubic_high_clear]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA for 2 minutes. Do not leave it soaking afterwards.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Fresh IPA for 1 minute, so it has 3 minutes in IPA in total, as Anycubic specifies.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air or a hair dryer on cool. Never heat a part that is still wet with IPA. Moisture during curing causes cracks and haze.
+  - key: cure
+    label: UV cure
+    rail: "2′"
+    time: 2 min
+    detail: Centre of the turntable, lid on. 2 minutes, never more than 3. Curing under clean water in a glass gives a cleaner surface.
+  - key: coat
+    label: Clarity coat
+    rail: coat
+    time: optional
+    optional: true
+    detail: For see-through parts, brush a thin layer of High Clear resin over it, UV 2 min, quick IPA rinse, then UV 2 min more while the surface is still wet. Repeat if needed.
+  cautions:
+  - Over-curing yellows it and makes it brittle. A slight yellow fades over a few weeks stored in the dark.
+  sources:
+  - label: Anycubic High Clear resin
+    url: https://store.anycubic.com/products/high-clear-resin
+  - label: Anycubic high transparency resin guide
+    url: https://wiki.anycubic.com/en/filament-and-resin/high-transparency-resin-guide
+  - label: Anycubic, How long to cure resin prints
+    url: https://store.anycubic.com/blogs/3d-printing-guides/how-long-to-cure-resin-prints
+
+- id: anycubic_standard_clear
+  name: Anycubic Standard Clear
+  resins: [anycubic_clear]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Fresh IPA for 1 minute. Soaking longer makes it swell and crack.
+  - key: brush
+    label: Brush corners
+    rail: "↻"
+    time: if sticky
+    detail: Soft brush into corners, then rinse with clean IPA from the squeeze bottle.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air or air dry until no IPA is left. A wet clear part cures cloudy.
+  - key: cure
+    label: UV cure
+    rail: "3′"
+    time: 3 min
+    detail: Centre of the turntable, lid on. 3 minutes; use less if it comes out yellow.
+  - key: polish
+    label: Polish
+    rail: sand
+    time: optional
+    optional: true
+    detail: For see-through parts, wet-sand 800 up to 3000 grit, then a UV-resistant clear coat.
+  cautions:
+  - Use 95% IPA or stronger. Weaker IPA turns the part white.
+  sources:
+  - label: Anycubic Standard resin
+    url: https://store.anycubic.com/products/colored-uv-resin
+  - label: Anycubic, How to wash and clean resin prints
+    url: https://store.anycubic.com/blogs/3d-printing-guides/how-to-wash-and-clean-3d-resin-prints
+  - label: Anycubic Standard resin datasheet
+    url: https://cdn.shopify.com/s/files/1/0698/1235/5357/files/ANYCUBIC-TDS-Standard_Resin.pdf
+
+- id: anycubic_standard_white
+  name: Anycubic Standard White
+  resins: [anycubic_white]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Fresh IPA for 1 minute. Soaking longer makes it swell and crack.
+  - key: brush
+    label: Brush corners
+    rail: "↻"
+    time: if sticky
+    detail: Soft brush into corners, then rinse with clean IPA from the squeeze bottle.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air, or air dry about 30 minutes. A wet part cures with white residue and stays sticky.
+  - key: cure
+    label: UV cure
+    rail: "3′"
+    time: 3 min
+    detail: Centre of the turntable, lid on. 3 minutes; up to 5 for large parts.
+  cautions:
+  - Over-curing turns white parts yellow and brittle.
+  sources:
+  - label: Anycubic Standard resin
+    url: https://store.anycubic.com/products/colored-uv-resin
+  - label: Anycubic Standard resin datasheet
+    url: https://cdn.shopify.com/s/files/1/0698/1235/5357/files/ANYCUBIC-TDS-Standard_Resin.pdf
+  - label: Anycubic, How long to cure resin prints
+    url: https://store.anycubic.com/blogs/3d-printing-guides/how-long-to-cure-resin-prints
+
+- id: siraya_sculpt_grey
+  name: Siraya Tech Sculpt Grey
+  resins: [siraya_sculpt_grey]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA. Run the wash for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Move the part to the fresh IPA for 1 minute.
+  - key: brush
+    label: Brush and rinse
+    rail: "↻"
+    time: until clean
+    detail: Brush the surface with a soft brush, then rinse with clean IPA. Repeat until the surface is clean and no longer sticky.
+  - key: dry
+    label: Air dry
+    rail: air
+    time: completely
+    detail: Let it air dry completely; no IPA may be left before UV. A hair dryer for about 10 minutes speeds it up.
+  - key: cure
+    label: UV cure
+    rail: "10′"
+    time: 10 min
+    detail: Dry part, centre of the turntable, lid on. 10 minutes for best performance.
+  cautions:
+  - No more than 5 minutes in alcohol in total, counting every rinse. Longer can crack the surface.
+  - Siraya's datasheet lists about 15 minutes of UV. Use 15 for parts that need full heat resistance, and cure dry, not under water.
+  sources:
+  - label: Siraya Tech Sculpt Grey and Clear datasheet
+    url: https://siraya.tech/pages/high-temperature-resistant-sculpt-grey-and-clear-tds
+  - label: Siraya Tech Sculpt user guide
+    url: https://siraya.tech/pages/sculpt-user-guide
+
+- id: siraya_sculpt_ultrawhite
+  name: Siraya Tech Sculpt Ultra White
+  resins: [siraya_sculpt_ultrawhite]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "2′"
+    time: 2 min
+    detail: Wash basket in the used IPA. Run the wash for 2 minutes.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Move the part to the fresh IPA for 1 minute.
+  - key: brush
+    label: Brush and rinse
+    rail: "↻"
+    time: until clean
+    detail: Brush the surface with a soft brush, then rinse with clean IPA. Repeat until the surface is clean and no longer sticky.
+  - key: dry
+    label: Air dry
+    rail: air
+    time: completely
+    detail: Let it air dry completely; no IPA may be left before UV. A hair dryer for about 10 minutes speeds it up.
+  - key: cure
+    label: UV cure
+    rail: "10′"
+    time: 10 min
+    detail: Dry part, centre of the turntable, lid on. 10 minutes, as in Siraya's Ultra White user guide.
+  cautions:
+  - No more than 5 minutes in alcohol in total, counting every rinse. Longer can crack the surface.
+  - Cure dry, not under water. Siraya's datasheet lists about 15 minutes for full heat resistance.
+  sources:
+  - label: Siraya Tech Sculpt Ultra White user guide
+    url: https://siraya.tech/pages/sculpt-ultra-white-user-guide
+  - label: Siraya Tech Sculpt Ultra White datasheet
+    url: https://siraya.tech/pages/high-temperature-resistant-sculpt-ultra-white-tds
+
+- id: superflex
+  name: 3DMaterials SuperFlex
+  resins: [superflex]
+  steps:
+  - key: dirty
+    label: Dirty IPA
+    rail: "1′"
+    time: 1 min
+    detail: Wash basket in the used IPA, 1 minute only. Flexible resin soaks up IPA and swells.
+  - key: clean
+    label: Clean IPA
+    rail: "1′"
+    time: 1 min
+    detail: Fresh IPA for 1 minute. Keep the total under 5 minutes.
+  - key: dry
+    label: Dry
+    rail: air
+    time: fully
+    detail: Compressed air, then let it stand until every trace of IPA has evaporated and it is back to size. Leftover IPA leaves it tacky.
+  - key: cure
+    label: UV cure
+    rail: "5′"
+    time: 5 min
+    detail: Dry part, centre of the turntable, lid on, 5 minutes.
+  - key: water
+    label: UV in water
+    rail: "5′"
+    time: 5 min
+    detail: Then 5 minutes more fully under clean water in a clear glass. This removes the sticky surface. Done when it is smooth, matte and not tacky; if still tacky, another 5 minutes in water.
+  cautions:
+  - Too much UV turns it yellow and stiffer, so stop once the surface is not tacky.
+  sources:
+  - label: 3DMaterials SuperFlex product page and Q&A
+    url: https://www.3dmaterials.com/sub/resins.php?page=1&prdcode=2109150009&ptype=view
+  - label: 3DMaterials user guide v3.0
+    url: https://www.dropbox.com/scl/fi/94fw4lukktsj5epoto3xs/User-Guide-v3.0_241209.pdf

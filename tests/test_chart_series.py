@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from resinpilot.charts import (
     bottom_distribution,
     failure_breakdown,
+    failure_diagnostics,
     fleet_comparison,
     printer_kpis,
     recent_rate,
@@ -79,6 +80,49 @@ def test_weekly_usage_fills_gap_weeks() -> None:
 
 def test_failure_breakdown_labels_unspecified() -> None:
     assert [(f["issue"], f["n"]) for f in failure_breakdown(RECORDS)] == [("detached", 1), ("unspecified", 1)]
+
+
+def test_failure_diagnostics_explains_and_advises() -> None:
+    assert failure_diagnostics([]) == []
+    rows = [
+        _rec(10, "2026-09-01T12:00:00+00:00", exp=2.2, bottom=40, temp=28.0),
+        _rec(11, "2026-09-02T12:00:00+00:00", exp=2.2, bottom=40, temp=28.0),
+        _rec(
+            12,
+            "2026-09-03T12:00:00+00:00",
+            exp=2.0,
+            bottom=28,
+            temp=20.0,
+            outcome=PrintOutcome.FAIL,
+            issue="no_adhesion",
+        ),
+        _rec(
+            13,
+            "2026-09-04T12:00:00+00:00",
+            exp=1.8,
+            bottom=30,
+            temp=21.0,
+            outcome=PrintOutcome.FAIL,
+            issue="no_adhesion",
+        ),
+        _rec(
+            14,
+            "2026-09-05T12:00:00+00:00",
+            exp=2.6,
+            bottom=40,
+            outcome=PrintOutcome.FAIL,
+            issue="features_closed",
+        ),
+    ]
+    diags = failure_diagnostics(rows)
+    assert [d["issue"] for d in diags] == ["no_adhesion", "features_closed"]
+    adhesion = diags[0]
+    assert adhesion["n"] == 2 and adhesion["share_pct"] == 66.7
+    assert "lower bottom exposure" in adhesion["cause"].lower() or "bond" in adhesion["cause"].lower()
+    assert adhesion["actions"] and any("bottom" in a.lower() for a in adhesion["actions"])
+    assert any("24°C" in e or "20°C" in e or "21°C" in e or "°C" in e for e in adhesion["evidence"])
+    closed = diags[1]
+    assert "actions" in closed and any("lower layer" in a.lower() for a in closed["actions"])
 
 
 def test_estimated_temps_are_ignored() -> None:

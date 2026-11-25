@@ -8,8 +8,21 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from .bottom_calibration import FAILURE_ISSUES
-from .models import PrintOutcome
+from .bottom_calibration import (
+    ADHESION_ISSUES,
+    FAILURE_ISSUES,
+    ISSUE_DETACHED,
+    ISSUE_FEATURES_CLOSED,
+    ISSUE_LAYER_SEPARATION,
+    ISSUE_NO_ADHESION,
+    ISSUE_OTHER,
+    ISSUE_OVER_CURE,
+    ISSUE_SUPPORTS,
+    infer_issue,
+)
+from .history import OpenJob, PendingJob
+from .models import PrintOutcome, PrintSettings
+from .outcome_signals import FAILURE_LAYER_STEPS
 from .parts import OTHER_GROUP, SIZE_LABELS, PartFamilies, part_info
 from .quality import quality_summary
 from .shape_scan import shape_text
@@ -42,6 +55,17 @@ def printer_kpis(records: list[HistoryRecord]) -> dict[str, Any]:
         "avg_uv_c": float(np.mean(uvs)) if uvs else None,
         "avg_duration_min": float(np.mean(durs)) if durs else None,
         "resin_count": len(resins),
+    }
+
+
+def _slice_counts(settings: PrintSettings | None) -> dict[str, str]:
+    """Bottom layers, transition layers, and rest after retract for the history log."""
+    if settings is None:
+        return {"bottom_layers": "—", "transition_layers": "—", "rest_after": "—"}
+    return {
+        "bottom_layers": str(int(settings.bottom_layer_count)),
+        "transition_layers": str(int(settings.transition_layer_count)),
+        "rest_after": f"{float(settings.rest_time_after_retract):.1f}s",
     }
 
 
@@ -97,6 +121,7 @@ def format_run_rows(
                 "layer": f"{r.layer_height:.3f}",
                 "layer_exp": f"{r.settings.normal_exposure_time:.2f}s",
                 "bottom_exp": f"{r.settings.bottom_exposure_time:.1f}s",
+                **_slice_counts(s),
                 "temp": temp,
                 "uv": uv,
                 "layers": layers,
@@ -234,6 +259,7 @@ def format_pending_rows(
                 "layer": f"{job.layer_height:.3f}",
                 "layer_exp": f"{settings.normal_exposure_time:.2f}s" if settings else "—",
                 "bottom_exp": f"{settings.bottom_exposure_time:.1f}s" if settings else "—",
+                **_slice_counts(settings),
                 "temp": f"{job.vat_temperature_c:.0f}°",
                 "uv": f"{job.uv_led_temp_c:.0f}°" if job.uv_led_temp_c is not None else "—",
                 "layers": layers,
@@ -605,6 +631,208 @@ def failure_breakdown(records: list[HistoryRecord]) -> list[dict[str, Any]]:
     )
 
 
+# Playbook: default cause + actions per failure mode (data patterns refine the "why").
+_ISSUE_PLAYBOOK: dict[str, dict[str, Any]] = {
+    ISSUE_NO_ADHESION: {
+        "cause": "The first layers did not bond hard enough to the build plate, so the print stayed on the film.",
+        "actions": [
+            "Raise bottom exposure (~15% is typical) — ResinPilot bumps this automatically after adhesion reports.",
+            "Warm resin/vat toward 25–30°C before printing; cold resin cures slower.",
+            "Check plate leveling and release-film wear; a cloudy or stretched film pulls harder.",
+        ],
+    },
+    ISSUE_DETACHED: {
+        "cause": "The print started on the plate, then peeled off mid-print — adhesion or film tension gave way.",
+        "actions": [
+            "Raise bottom exposure and keep bottom/transition layer counts from dropping.",
+            "Inspect release film cycles; replace film if it's past its limit or looks cloudy.",
+            "Slow lift / longer rest after retract can help stubborn resins stick through the whole print.",
+        ],
+    },
+    ISSUE_OVER_CURE: {
+        "cause": "Bottom layers cured too hard (elephant foot / welded to the plate).",
+        "actions": [
+            "Lower bottom exposure (~10%) — ResinPilot cuts this after over-cure reports.",
+            "Reduce bottom layer count slightly if the base is still overbuilt.",
+            "Do not raise layer exposure to fix this; that would make the rest of the part worse.",
+        ],
+    },
+    ISSUE_LAYER_SEPARATION: {
+        "cause": "Normal layers were under-cured, so they delaminated as the plate lifted.",
+        "actions": [
+            f"Raise layer exposure about {abs(FAILURE_LAYER_STEPS[ISSUE_LAYER_SEPARATION][0]) * 100:.0f}% at this layer height.",
+            "Prefer a warmer vat; cold resin needs more exposure for the same cure.",
+            "Confirm the slicer layer height matches what you intended.",
+        ],
+    },
+    ISSUE_SUPPORTS: {
+        "cause": "Supports were too weak or under-cured, so the part dropped mid-print.",
+        "actions": [
+            f"Raise layer exposure about {abs(FAILURE_LAYER_STEPS[ISSUE_SUPPORTS][0]) * 100:.0f}% so supports cure solidly.",
+            "In the slicer: thicker tips, denser supports, or a wider contact diameter.",
+            "Avoid large unsupported islands; re-orient the part if needed.",
+        ],
+    },
+    ISSUE_FEATURES_CLOSED: {
+        "cause": "Layer exposure was too high for fine channels/holes, so details fused shut.",
+        "actions": [
+            f"Lower layer exposure about {abs(FAILURE_LAYER_STEPS[ISSUE_FEATURES_CLOSED][0]) * 100:.0f}% for this resin/height.",
+            "Use a clearer or lower-pigment resin for tiny channels when possible.",
+            "Drain and wash trapped resin promptly after the print.",
+        ],
+    },
+    ISSUE_OTHER: {
+        "cause": "The report did not map to a standard exposure failure — machine, slicing, or resin handling may be involved.",
+        "actions": [
+            "Re-read the notes on those fails and pick a more specific failure type next time.",
+            "Check resin mix/age, film condition, and that the file's layer height matches the profile.",
+            "Compare settings against a recent success on the same resin before changing much.",
+        ],
+    },
+    UNSPECIFIED_ISSUE: {
+        "cause": "These fails were logged without a failure type, so the cause is unclear.",
+        "actions": [
+            "When reporting, pick the closest failure type so ResinPilot can adjust exposures.",
+            "Use the quality checklist (missing features, dimensions, residue) for subtler issues.",
+        ],
+    },
+}
+
+
+def _median(vals: list[float]) -> float | None:
+    return float(np.median(vals)) if vals else None
+
+
+def _pct_delta(fail_v: float | None, ok_v: float | None) -> float | None:
+    if fail_v is None or ok_v is None or ok_v == 0:
+        return None
+    return (fail_v / ok_v - 1.0) * 100.0
+
+
+def _issue_evidence(fails: list[HistoryRecord], successes: list[HistoryRecord]) -> list[str]:
+    """Data-backed clues comparing this failure mode to successful runs."""
+    bits: list[str] = []
+    n = len(fails)
+    fail_bot = _median([r.settings.bottom_exposure_time for r in fails])
+    ok_bot = _median([r.settings.bottom_exposure_time for r in successes])
+    fail_exp = _median([r.settings.normal_exposure_time for r in fails])
+    ok_exp = _median([r.settings.normal_exposure_time for r in successes])
+    d_bot = _pct_delta(fail_bot, ok_bot)
+    d_exp = _pct_delta(fail_exp, ok_exp)
+    if d_bot is not None and abs(d_bot) >= 8:
+        bits.append(
+            f"Median bottom exposure on these fails is {fail_bot:.1f}s "
+            f"({d_bot:+.0f}% vs {ok_bot:.1f}s on successes)."
+        )
+    if d_exp is not None and abs(d_exp) >= 6:
+        bits.append(
+            f"Median layer exposure on these fails is {fail_exp:.2f}s "
+            f"({d_exp:+.0f}% vs {ok_exp:.2f}s on successes)."
+        )
+
+    fail_temps = [r.vat_temperature_c for r in fails if temp_measured(r)]
+    ok_temps = [r.vat_temperature_c for r in successes if temp_measured(r)]
+    cold = [t for t in fail_temps if t is not None and t < 24]
+    if fail_temps and len(cold) >= max(1, (len(fail_temps) + 1) // 2):
+        bits.append(f"{len(cold)} of {len(fail_temps)} measured fails ran below 24°C vat temp.")
+    elif fail_temps and ok_temps:
+        f_m, o_m = float(np.mean(fail_temps)), float(np.mean(ok_temps))
+        if o_m - f_m >= 3:
+            bits.append(f"These fails averaged {f_m:.0f}°C vs {o_m:.0f}°C on successes.")
+
+    early = 0
+    for r in fails:
+        if r.end_layer is None or not r.total_layers:
+            continue
+        early_cut = r.settings.bottom_layer_count + r.settings.transition_layer_count + 10
+        if r.end_layer < r.total_layers and r.end_layer <= early_cut:
+            early += 1
+    if early and early >= max(1, n // 2):
+        bits.append(f"{early} of {n} stopped in the bottom/transition zone (early lift-off).")
+
+    layers = sorted({round(r.layer_height, 3) for r in fails})
+    if len(layers) == 1:
+        bits.append(f"All {n} happened at {layers[0]:.3f} mm layer height.")
+    elif layers:
+        bits.append("Layer heights involved: " + ", ".join(f"{h:.3f} mm" for h in layers) + ".")
+
+    return bits
+
+
+def _diagnostic_issue(rec: HistoryRecord) -> str:
+    """Bucket a fail for diagnostics: prefer explicit codes, else infer, else unspecified."""
+    explicit = rec.failure_issue or ""
+    if explicit in FAILURE_ISSUES and explicit != ISSUE_OTHER:
+        return explicit
+    inferred = infer_issue(rec)
+    if inferred and inferred != ISSUE_OTHER:
+        return inferred
+    if explicit == ISSUE_OTHER or (rec.notes or "").strip():
+        return ISSUE_OTHER
+    return UNSPECIFIED_ISSUE
+
+
+def failure_diagnostics(records: list[HistoryRecord]) -> list[dict[str, Any]]:
+    """Per failure mode: why it likely happened and what to change next.
+
+    Uses reported/inferred issue codes, compares settings and temps against successes,
+    and attaches the playbook actions ResinPilot already uses for learning.
+    """
+    fails = [r for r in records if r.outcome == PrintOutcome.FAIL]
+    if not fails:
+        return []
+    successes = [r for r in records if r.outcome == PrintOutcome.SUCCESS]
+    by_issue: dict[str, list[HistoryRecord]] = defaultdict(list)
+    for r in fails:
+        by_issue[_diagnostic_issue(r)].append(r)
+
+    out: list[dict[str, Any]] = []
+    total_fail = len(fails)
+    labels = {**FAILURE_ISSUES, UNSPECIFIED_ISSUE: "Not specified"}
+    for issue, rows in sorted(by_issue.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        book = _ISSUE_PLAYBOOK.get(issue) or _ISSUE_PLAYBOOK[ISSUE_OTHER]
+        evidence = _issue_evidence(rows, successes)
+        cause = book["cause"]
+        fail_exp = _median([r.settings.normal_exposure_time for r in rows])
+        ok_exp = _median([r.settings.normal_exposure_time for r in successes])
+        fail_bot = _median([r.settings.bottom_exposure_time for r in rows])
+        ok_bot = _median([r.settings.bottom_exposure_time for r in successes])
+        d_exp = _pct_delta(fail_exp, ok_exp)
+        d_bot = _pct_delta(fail_bot, ok_bot)
+        if issue in ADHESION_ISSUES and d_bot is not None and d_bot <= -8:
+            cause = (
+                f"Adhesion fails used lower bottom exposure than successes "
+                f"({fail_bot:.1f}s vs {ok_bot:.1f}s) — plate bond was likely too weak."
+            )
+        elif issue == ISSUE_OVER_CURE and d_bot is not None and d_bot >= 8:
+            cause = (
+                f"Over-cure reports used higher bottom exposure than successes "
+                f"({fail_bot:.1f}s vs {ok_bot:.1f}s)."
+            )
+        elif issue in (ISSUE_LAYER_SEPARATION, ISSUE_SUPPORTS) and d_exp is not None and d_exp <= -6:
+            cause = (
+                f"These fails ran lower layer exposure than successes "
+                f"({fail_exp:.2f}s vs {ok_exp:.2f}s) — under-cure fits the pattern."
+            )
+        elif issue == ISSUE_FEATURES_CLOSED and d_exp is not None and d_exp >= 6:
+            cause = (
+                f"These fails ran higher layer exposure than successes "
+                f"({fail_exp:.2f}s vs {ok_exp:.2f}s) — over-cure of fine detail fits."
+            )
+        out.append(
+            {
+                "issue": issue,
+                "label": labels.get(issue, issue),
+                "n": len(rows),
+                "share_pct": round(100.0 * len(rows) / total_fail, 1),
+                "cause": cause,
+                "evidence": evidence,
+                "actions": list(book["actions"]),
+            }
+        )
+    return out
+
+
 def recent_rate(records: list[HistoryRecord], days: int = 28, now: datetime | None = None) -> dict[str, float]:
     """Prints and print hours per week over the last `days`."""
     now = now or datetime.now(timezone.utc)
@@ -615,6 +843,62 @@ def recent_rate(records: list[HistoryRecord], days: int = 28, now: datetime | No
         "prints_per_week": len(recent) / per,
         "hours_per_week": sum(_print_hours(r) for r in recent) / per,
     }
+
+
+def _span(started_at: str, duration_s: float | None, fallback_end: str = "") -> tuple[datetime, datetime] | None:
+    """Print start and end. A report time can be hours late, so prefer the print duration."""
+    start = _parse_ts(started_at)
+    if start is None:
+        return None
+    if duration_s:
+        return start, start + timedelta(seconds=float(duration_s))
+    end = _parse_ts(fallback_end)
+    return (start, end) if end and end >= start else None
+
+
+def print_timeline(
+    records: list[HistoryRecord],
+    pending: list[PendingJob],
+    open_jobs: list[OpenJob],
+    hours: float = 12.0,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Print bars per printer over the last `hours`: reported, unreported, finished and still printing."""
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(hours=hours)
+    bars: list[dict[str, Any]] = []
+
+    def add(pid: str, span: tuple[datetime, datetime] | None, kind: str, filename: str, **extra: Any) -> None:
+        if span is None or span[1] < cutoff:
+            return
+        bars.append(
+            {
+                "printer_id": pid,
+                "start": span[0].isoformat(),
+                "end": span[1].isoformat(),
+                "kind": kind,
+                "filename": filename,
+                **extra,
+            }
+        )
+
+    for rec in records:
+        kind = "fail" if rec.outcome == PrintOutcome.FAIL else "success"
+        add(rec.printer_id, _span(rec.started_at, rec.duration_s, rec.ended_at), kind, rec.filename, run_id=rec.id)
+    for item in pending:
+        job = item.job
+        add(job.printer_id, _span(job.started_at, job.duration_s, item.finished_at), "unreported", job.filename, pending_id=item.id)
+    for job in open_jobs:
+        start = _parse_ts(job.started_at)
+        if start is None:
+            continue
+        if job.awaiting_outcome:
+            add(job.printer_id, _span(job.started_at, job.duration_s, now.isoformat()), "finished", job.filename)
+        else:
+            end = start + timedelta(seconds=float(job.eta_total_s)) if job.eta_total_s else now
+            add(job.printer_id, (start, max(end, now)), "printing", job.filename, task_id=job.task_id)
+    bars.sort(key=lambda b: b["start"])
+    return {"now": now.isoformat(), "from": cutoff.isoformat(), "hours": hours, "bars": bars}
 
 
 def fleet_comparison(

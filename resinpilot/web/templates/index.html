@@ -6,7 +6,10 @@
   <title>ResinPilot</title>
   <link rel="icon" href="/assets/branding/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="/assets/branding/favicon.png" />
-  <link rel="stylesheet" href="/static/app.css?v=fleet-1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css?v=today-dash" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -123,57 +126,95 @@
     <path d="M8 3v4M16 3v4M4 10h16"/>
   </symbol>
 </svg>
+<div class="shell">
+  <aside class="sidebar" aria-label="ResinPilot">
+    <a class="side-brand" href="/">ResinPilot</a>
+    <nav class="nav side-nav" id="nav">
+      <button data-panel="today" class="active"><svg class="ico" aria-hidden="true"><use href="#i-today"></use></svg>Today</button>
+      <button data-panel="history"><svg class="ico" aria-hidden="true"><use href="#i-history"></use></svg>History</button>
+      <button data-panel="charts"><svg class="ico" aria-hidden="true"><use href="#i-insights"></use></svg>Insights</button>
+      <button data-panel="printers"><svg class="ico" aria-hidden="true"><use href="#i-printer"></use></svg>Printers</button>
+      <button data-panel="calibrate"><svg class="ico" aria-hidden="true"><use href="#i-manual"></use></svg>Manual</button>
+    </nav>
+    <div class="side-foot">
+      <a class="side-link" id="repoLink" href="#" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-external"></use></svg>GitHub</a>
+      <select id="themeSelect" aria-label="Theme" title="Theme">
+        <option value="system">System theme</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+    </div>
+  </aside>
 <div class="app">
-    <div class="top">
-      <div class="brand-block">
-        <a class="brand-lockup" href="/">ResinPilot</a>
-        <h1>Resin printer manager</h1>
-      </div>
-      <div class="top-actions">
-        <div class="sub" id="headerSub"></div>
-        <div class="top-btns">
-          <select id="themeSelect" aria-label="Theme" title="Theme">
-            <option value="system">System</option>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-          </select>
-          <a class="btn secondary" id="repoLink" href="#" target="_blank" rel="noopener"><svg class="ico" aria-hidden="true"><use href="#i-external"></use></svg>GitHub</a>
-        </div>
-      </div>
-    </div>
-
-    <div class="nav-row">
-      <nav class="nav seg" id="nav">
-        <span class="seg-pill" aria-hidden="true"></span>
-        <button data-panel="today" class="active"><svg class="ico" aria-hidden="true"><use href="#i-today"></use></svg>Today</button>
-        <button data-panel="charts"><svg class="ico" aria-hidden="true"><use href="#i-insights"></use></svg>Insights</button>
-        <button data-panel="history"><svg class="ico" aria-hidden="true"><use href="#i-history"></use></svg>History</button>
-        <button data-panel="printers"><svg class="ico" aria-hidden="true"><use href="#i-printer"></use></svg>Printers</button>
-        <button data-panel="calibrate"><svg class="ico" aria-hidden="true"><use href="#i-manual"></use></svg>Manual</button>
-      </nav>
-    </div>
-
-    <div class="alert-bar" id="alertBar"></div>
-    <div id="newPrinterNotice" class="detect" hidden></div>
-    <div class="status-bar" id="statusBar"></div>
+    <header class="topbar">
+      <h1 id="pageTitle">Today</h1>
+      <span class="sub" id="headerSub"></span>
+    </header>
 
     <!-- Today -->
     <section class="panel fit active" id="panel-today">
-      <div class="toolbar">
-        <select id="resinSelect" hidden></select>
-        <label for="todayPart">Printing</label>
-        <select id="todayPart"><option value="">Any part</option></select>
-        <select id="todaySize" title="Part size (set automatically when you pick a part)">
-          <option value="">Any size</option>
-          <option value="small">Small (&lt; 300 mm² per layer)</option>
-          <option value="medium">Medium (300–700 mm²)</option>
-          <option value="bulky">Bulky (≥ 700 mm²)</option>
-        </select>
-        <span class="caption room-note" id="roomNote"></span>
-        <button class="btn secondary" id="btnRefresh"><svg class="ico" aria-hidden="true"><use href="#i-refresh"></use></svg><span class="btn-label">Refresh</span></button>
+      <aside class="today-rail" aria-label="Fleet summary and profile">
+        <div class="today-dash" id="todayDash" aria-label="Fleet summary">
+          <div class="today-kpi" data-kpi="printing">
+            <span class="today-kpi-value" id="kpiPrinting">—</span>
+            <span class="today-kpi-label">Printing</span>
+          </div>
+          <div class="today-kpi" data-kpi="idle">
+            <span class="today-kpi-value" id="kpiIdle">—</span>
+            <span class="today-kpi-label">Ready</span>
+          </div>
+          <div class="today-kpi" data-kpi="attention">
+            <span class="today-kpi-value" id="kpiAttention">—</span>
+            <span class="today-kpi-label">Attention</span>
+          </div>
+          <div class="today-kpi room" id="roomNote" title="">
+            <span class="today-kpi-value" id="kpiRoom">—</span>
+            <span class="today-kpi-label">Room / vat</span>
+          </div>
+        </div>
+        <div class="toolbar today-filters">
+          <span class="today-filters-label">Profile</span>
+          <select id="resinSelect" hidden></select>
+          <label for="todayPart">Part</label>
+          <select id="todayPart"><option value="">Any part</option></select>
+          <label for="todaySize">Size</label>
+          <select id="todaySize" title="Part size (set automatically when you pick a part)">
+            <option value="">Any size</option>
+            <option value="small">Small (&lt; 300 mm² per layer)</option>
+            <option value="medium">Medium (300–700 mm²)</option>
+            <option value="bulky">Bulky (≥ 700 mm²)</option>
+          </select>
+          <button class="btn secondary" id="btnRefresh"><svg class="ico" aria-hidden="true"><use href="#i-refresh"></use></svg><span class="btn-label">Refresh</span></button>
+        </div>
+        <div class="alert-bar" id="alertBar"></div>
+        <div id="detectBanner" class="detect" hidden></div>
+        <section class="rail-fleet" id="todayFleet" aria-labelledby="todayFleetTitle">
+          <div class="rail-fleet-head">
+            <span class="today-filters-label" id="todayFleetTitle">Prints per week</span>
+            <button type="button" class="link" data-goto="charts">Fleet comparison</button>
+          </div>
+          <div class="rail-fleet-chart"><canvas id="chartTodayFleet" aria-label="Prints per week by printer"></canvas></div>
+          <ul class="rail-fleet-legend" id="todayFleetLegend"></ul>
+        </section>
+      </aside>
+      <div class="today-main">
+        <div id="newPrinterNotice" class="detect" hidden></div>
+        <div class="status-bar" id="statusBar"></div>
+        <div id="todayCards"></div>
+        <section class="timeline" id="todayTimeline" aria-labelledby="timelineTitle" hidden>
+          <header class="timeline-head">
+            <h2 id="timelineTitle">Timeline</h2>
+            <span class="timeline-sub" id="timelineSub"></span>
+            <ul class="timeline-key" aria-label="Key">
+              <li><span class="tl-swatch printing"></span>Printing</li>
+              <li><span class="tl-swatch finished"></span>Finished, not reported</li>
+              <li><span class="tl-swatch success"></span>Success</li>
+              <li><span class="tl-swatch fail"></span>Failed</li>
+            </ul>
+          </header>
+          <div class="timeline-body" id="timelineBody"></div>
+        </section>
       </div>
-      <div id="detectBanner" class="detect" hidden></div>
-      <div id="todayCards"></div>
     </section>
 
     <!-- Manual -->
@@ -319,6 +360,12 @@
         <div class="caption">What the logged runs suggest for this printer</div>
         <div class="insights" id="insights">Loading…</div>
       </div>
+      <div class="card" id="diagnosticsCard">
+        <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-fail"></use></svg>Failure diagnostics</h2>
+        <div class="caption">Why these failure modes showed up in the log, and what to change so they stop</div>
+        <div id="diagnosticsList" class="diag-list"></div>
+        <div class="empty-note" id="diagnosticsEmpty" hidden>No failed prints logged for this printer — diagnostics appear after you report fails.</div>
+      </div>
       <div class="card">
         <h2 class="card-title"><svg class="ico" aria-hidden="true"><use href="#i-layers"></use></svg>Layer exposure vs layer height</h2>
         <div class="caption" id="curveCaption">Cure curve for each resin. A colder vat needs more time, and a pigmented resin changes more with layer height than a clear one.</div>
@@ -420,6 +467,7 @@
       </div>
     </section>
   </div>
+</div>
 
   <div class="modal-backdrop" id="reportModal">
     <div class="modal">
@@ -470,6 +518,18 @@
     </div>
   </div>
 
-  <script src="/static/app.js?v=fleet-1"></script>
+  <div class="modal-backdrop" id="postModal">
+    <div class="modal post-pop" role="dialog" aria-labelledby="postTitle">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <h3 id="postTitle">Post-processing</h3>
+        <button type="button" class="btn secondary sm" id="postClose">Close</button>
+      </div>
+      <p class="caption">Gloves stay on. Each resin has its own wash, dry and UV times.</p>
+      <label>Resin <select id="postResin" aria-label="Resin"></select></label>
+      <div id="postSop"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js?v=today-dash"></script>
 </body>
 </html>

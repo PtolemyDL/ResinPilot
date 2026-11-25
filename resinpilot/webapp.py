@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import __version__
+from . import __version__, post_process
 from .branding import APP_NAME, APP_TAGLINE, DEFAULT_PORT, REPO_URL, web_urls
 from .drivers import drivers
 from .paths import ASSETS_DIR, WEB_DIR, preview_dir
@@ -124,6 +124,11 @@ def api_printers() -> list[dict[str, Any]]:
 @app.get("/api/resins")
 def api_resins() -> list[dict[str, Any]]:
     return get_service().primary_resins()
+
+
+@app.get("/api/post-process")
+def api_post_process() -> dict[str, Any]:
+    return post_process.sops_payload()
 
 
 @app.get("/api/models")
@@ -317,6 +322,11 @@ def api_history(printer_id: str) -> dict[str, Any]:
 @app.get("/api/charts-fleet")
 def api_charts_fleet() -> dict[str, Any]:
     return get_service().fleet_charts()
+
+
+@app.get("/api/timeline")
+def api_timeline(hours: float = 12.0) -> dict[str, Any]:
+    return get_service().timeline(hours)
 
 
 @app.get("/api/charts/{printer_id}")

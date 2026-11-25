@@ -19,6 +19,7 @@ const state = {
   lastRecommend: null,
   newPrinters: [],
   removedPrinters: [],
+  post: null,
 };
 
 function cssVar(name) {
@@ -149,6 +150,8 @@ function setPanel(name) {
   document.querySelectorAll(".panel").forEach((p) => {
     p.classList.toggle("active", p.id === `panel-${name}`);
   });
+  const titles = { today: "Today", charts: "Insights", history: "History", printers: "Printers", calibrate: "Manual" };
+  if ($("pageTitle")) $("pageTitle").textContent = titles[name] || name;
   placeSegPill($("nav"));
   history.replaceState(null, "", name === "today" ? location.pathname : `#${name}`);
   if (from !== to && from >= 0 && to >= 0) animatePanel($(`panel-${name}`), to > from ? "enter-right" : "enter-left");
@@ -365,8 +368,81 @@ function animateOrbitRings(root) {
   });
 }
 
+function sopFor(resinId) {
+  const id = state.post?.by_resin?.[resinId];
+  return id ? state.post.sops[id] : null;
+}
+
+function sopRail(sop) {
+  const seen = new Set();
+  const segs = sop.steps.map((s) => {
+    const words = s.label.split(" ");
+    const word = seen.has(words[0]) ? words[words.length - 1] : words[0];
+    seen.add(words[0]);
+    const tip = `${s.label} · ${s.time}${s.detail ? ` · ${s.detail}` : ""}${s.optional ? " (optional)" : ""}`;
+    return `<span class="sop-seg${s.optional ? " opt" : ""}" title="${esc(tip)}"><span class="v">${esc(s.rail)}</span><span class="k">${esc(word)}</span></span>`;
+  });
+  return `<div class="sop-rail" style="--n:${sop.steps.length}">${segs.join("")}</div>`;
+}
+
+function sopMarkup(resinId) {
+  const sop = sopFor(resinId);
+  if (!sop) return "";
+  return `<div class="sop-next"><button type="button" class="sop-next-label" data-post-guide="${esc(resinId)}" title="Every step, cautions and sources">${esc(sop.name)}</button>${sopRail(sop)}</div>`;
+}
+
+function renderPostSop(resinId) {
+  const root = $("postSop");
+  if (!root) return;
+  const sop = sopFor(resinId);
+  if (!sop) {
+    root.innerHTML = `<p class="caption">No post-processing SOP for this resin yet.</p>`;
+    return;
+  }
+  root.innerHTML = `
+    <ol class="post-steps">
+      ${sop.steps
+        .map(
+          (s, i) => `<li class="${s.optional ? "opt" : ""}">
+            <div class="post-time">${esc(s.rail)}</div>
+            <div>
+              <strong><span class="post-n">${i + 1}</span>${esc(s.label)} <small>${esc(s.time)}${s.optional ? " · optional" : ""}</small></strong>
+              <p>${esc(s.detail)}</p>
+            </div>
+          </li>`
+        )
+        .join("")}
+    </ol>
+    ${sop.cautions.map((c) => `<div class="sop-caution"><span>${esc(c)}</span></div>`).join("")}
+    <div class="sop-sources">Sources: ${sop.sources
+      .map((s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`)
+      .join(" · ")}</div>`;
+}
+
+function openPostProcess(resinId) {
+  const sel = $("postResin");
+  if (sel) {
+    const resins = (state.resins || []).filter((r) => sopFor(r.id));
+    const pick = resins.some((r) => r.id === resinId) ? resinId : resins[0]?.id || "";
+    sel.innerHTML = resins.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("");
+    sel.value = pick;
+    renderPostSop(pick);
+  }
+  $("postModal")?.classList.add("show");
+}
+
+function closePostProcess() {
+  $("postModal")?.classList.remove("show");
+}
+
 function bindFleetBoard(root) {
   if (!root) return;
+  root.querySelectorAll("[data-post-guide]").forEach((btn) =>
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openPostProcess(btn.dataset.postGuide);
+    })
+  );
   root.querySelectorAll("[data-report]").forEach((btn) =>
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -393,14 +469,15 @@ function renderToday() {
   }
   if (!data.cards.length) {
     root.classList.remove("fleet-board");
-    $("roomNote").textContent = "";
+    if ($("kpiRoom")) $("kpiRoom").textContent = "—";
     renderWelcome(root);
     renderAlerts();
+    updateTodayDash();
     return;
   }
   const measured = (state.fleet?.room_vat_c ?? null) != null;
   const ref = state.printers.find((p) => p.id === data.room_ref);
-  $("roomNote").textContent = measured ? `Room ${data.vat_c.toFixed(0)}°C` : `Room ${data.vat_c.toFixed(0)}°C (assumed)`;
+  if ($("kpiRoom")) $("kpiRoom").textContent = data.vat_c != null ? `${Number(data.vat_c).toFixed(0)}°C` : "—";
   $("roomNote").title = measured
     ? `Measured by ${ref ? ref.name : "a printer"}'s vat sensor; profiles follow it as the fleet refreshes`
     : "No printer is reporting a vat temperature — using the room temperature from Settings";
@@ -451,53 +528,30 @@ function renderToday() {
       const timeLeft = printing ? durationText(p.time_left_s) : "";
       const stageDetail = [detail, timeLeft].filter(Boolean).join(" · ");
 
-      const groupRows = [];
-      if (p.temp_display) {
-        groupRows.push(`<div class="fc-row" title="Room / vat · UV">
-          <span class="fc-row-label">Climate</span>
-          <span class="fc-row-value">${esc(p.temp_display)}</span>
-        </div>`);
-      }
-      if (filmCycles != null) {
-        groupRows.push(`<div class="fc-row film ${filmLevel}" title="${esc(p.film?.warning || "")}">
-          <span class="fc-row-label">Film</span>
-          <span class="fc-row-trailing">
-            <span class="fc-row-value">${filmCycles.toLocaleString()}</span>
-            ${filmPct != null ? `<span class="fc-row-bar"><i style="width:${filmPct}%"></i></span>` : ""}
-          </span>
-        </div>`);
-      }
-      groupRows.push(`<div class="fc-row resin">
-        <span class="fc-row-label">Resin <span class="swatch" style="background:${esc(p.vat_resin_swatch || "transparent")}"></span></span>
-        <select data-vat-resin="${esc(pid)}" title="Set the resin in this printer's tank (${esc(since)})">${opts}</select>
-      </div>`);
-
       let groupFoot = "";
+      let heroMetrics = `<div class="fc-hero-metrics">
+          <div class="fc-metric layer"><span class="fc-metric-label">Layer</span><span class="fc-metric-value muted">No settings yet</span></div>
+          <div class="fc-metric bottom"><span class="fc-metric-label">Bottom</span><span class="fc-metric-value muted">—</span></div>
+        </div>`;
       const profiles = card.profiles || [];
-      if (!profiles.length) {
-        groupRows.push(`<div class="fc-row">
-          <span class="fc-row-label">Today</span>
-          <span class="fc-row-value muted">No settings yet</span>
-        </div>`);
-      } else {
+      if (profiles.length) {
         let cuePr = null;
         profiles.forEach((pr) => {
           const lhLabel = formatLh(pr.layer_height);
           if (pr.error) {
-            groupRows.push(`<div class="fc-row">
-              <span class="fc-row-label">${esc(lhLabel)} mm</span>
-              <span class="fc-row-value warn" title="${esc(pr.error)}">${esc(pr.error)}</span>
-            </div>`);
+            heroMetrics = `<div class="fc-hero-metrics">
+              <div class="fc-metric layer"><span class="fc-metric-label">Layer · ${esc(lhLabel)} mm</span><span class="fc-metric-value warn" title="${esc(pr.error)}">${esc(pr.error)}</span></div>
+              <div class="fc-metric bottom"><span class="fc-metric-label">Bottom</span><span class="fc-metric-value muted">—</span></div>
+            </div>`;
             return;
           }
-          if (!cuePr) cuePr = pr;
-          groupRows.push(`<div class="fc-row exposure layer">
-            <span class="fc-row-label">${esc(lhLabel)} mm</span>
-            <span class="fc-row-trailing">
-              <span class="fc-row-value tabular" title="Layer exposure">${Number(pr.normal_exposure_time).toFixed(2)}<span class="fc-row-unit">s</span></span>
-              <span class="fc-row-value tabular" title="Bottom exposure" style="color:var(--orange)">${Number(pr.bottom_exposure_time).toFixed(1)}<span class="fc-row-unit">s bot</span></span>
-            </span>
-          </div>`);
+          if (!cuePr) {
+            cuePr = pr;
+            heroMetrics = `<div class="fc-hero-metrics">
+              <div class="fc-metric layer"><span class="fc-metric-label">Layer · ${esc(lhLabel)} mm</span><span class="fc-metric-value">${Number(pr.normal_exposure_time).toFixed(2)}<span class="fc-row-unit">s</span></span></div>
+              <div class="fc-metric bottom"><span class="fc-metric-label">Bottom</span><span class="fc-metric-value">${Number(pr.bottom_exposure_time).toFixed(1)}<span class="fc-row-unit">s</span></span></div>
+            </div>`;
+          }
         });
         if (cuePr && !cuePr.error) {
           const why = [
@@ -526,28 +580,42 @@ function renderToday() {
       }
 
       const backdropSrc = printing && preview ? preview : "";
+      const media = printing
+        ? `<div class="fc-orbit is-live" style="--pct:${fromPct}" data-orbit-target="${targetPct}">
+            <div class="fc-photo"><img src="${esc(photoSrc(photo))}" alt="" onerror="this.style.visibility='hidden'" /></div>
+            ${pct != null ? `<div class="fc-orbit-pct">${pct}<span>%</span></div>` : ""}
+          </div>`
+        : `<div class="fc-badge"><img src="${esc(photoSrc(photo))}" alt="" onerror="this.style.visibility='hidden'" /></div>`;
+      const stepAt = awaiting ? 3 : printing ? 2 : 0;
+      const steps = ["Prep", "Slice", "Print", "Finish", "Report"]
+        .map((s, i) => `<li class="${i < stepAt ? "done" : i === stepAt ? "now" : ""}">${s}</li>`)
+        .join("");
+      const opsBits = [];
+      if (p.temp_display) opsBits.push(`<span>${esc(p.temp_display)}</span>`);
+      if (filmCycles != null) opsBits.push(`<span class="film ${filmLevel}">Film ${filmCycles.toLocaleString()}</span>`);
       return `<div class="card fleet-card ${esc(kind)}${backdropSrc ? " has-backdrop" : ""}" data-printer-id="${esc(pid)}">
         ${backdropSrc ? `<div class="fc-backdrop" aria-hidden="true"><img src="${esc(photoSrc(backdropSrc))}" alt="" onerror="this.closest('.fleet-card')?.classList.remove('has-backdrop'); this.remove()" /></div>` : ""}
-        <div class="fc-orbit${printing ? " is-live" : ""}${ringEmpty ? " is-empty" : ""}" style="--pct:${fromPct}" data-orbit-target="${targetPct}">
-          <div class="fc-photo">
-            <img src="${esc(photoSrc(photo))}" alt="" onerror="this.style.visibility='hidden'" />
-            ${backdropSrc ? `<img class="st-plate" src="${esc(photoSrc(backdropSrc))}" alt="" title="Current plate" onerror="this.remove()" />` : ""}
-          </div>
-          ${printing && pct != null ? `<div class="fc-orbit-pct">${pct}<span>%</span></div>` : ""}
-        </div>
         <div class="fc-chrome">
-          <div class="fc-name">${esc(shortName)}${isLead ? ' <span class="st-tag">room ref</span>' : ""}</div>
-          <div class="fc-actions">${report}</div>
+          <div class="fc-name" title="${esc(shortName)}"><span class="fc-name-text">${esc(shortName)}</span>${isLead ? '<span class="st-tag">lead</span>' : ""}</div>
+          <span class="fc-chip">${esc(statusWord)}</span>
         </div>
         <div class="fc-body">
-          <div class="fc-hero">
-            <div class="fc-status">${esc(statusWord)}</div>
-            ${stageDetail ? `<div class="fc-detail" title="${esc(stageDetail)}">${esc(stageDetail)}</div>` : ""}
+          ${heroMetrics}
+          <div class="fc-ops">
+            ${media}
+            <div class="fc-ops-meta">
+              <div class="fc-detail" title="${esc(stageDetail)}">${esc(stageDetail || statusWord)}</div>
+              ${opsBits.length ? `<div class="fc-ops-stats">${opsBits.join("")}</div>` : ""}
+            </div>
           </div>
-          <div class="fc-group">
-            ${groupRows.join("")}
-            ${groupFoot}
+          <ol class="lane-steps" aria-label="Job step">${steps}</ol>
+          ${sopMarkup(resinId)}
+          ${report ? `<div class="lane-actions">${report}</div>` : ""}
+          <div class="fc-resin">
+            <span class="fc-resin-label">Resin <span class="swatch" style="background:${esc(p.vat_resin_swatch || "transparent")}"></span></span>
+            <select data-vat-resin="${esc(pid)}" title="Set the resin in this printer's tank (${esc(since)})">${opts}</select>
           </div>
+          ${groupFoot}
         </div>
       </div>`;
     })
@@ -556,6 +624,162 @@ function renderToday() {
   bindFleetBoard(root);
   animateOrbitRings(root);
   renderAlerts();
+  updateTodayDash();
+  loadTodayFleet().catch(() => {});
+  loadTimeline().catch(() => {});
+}
+
+function updateTodayDash() {
+  const printers = state.fleet?.printers || [];
+  const jobs = state.fleet?.open_jobs || [];
+  let printing = 0;
+  let idle = 0;
+  let attention = 0;
+  for (const p of printers) {
+    const kind = p.status_kind || "offline";
+    if (kind === "printing") printing += 1;
+    else if (kind === "idle" || kind === "finished") idle += 1;
+    const needsCare = kind === "failed" || kind === "offline" || kind === "maintenance" || jobs.some((j) => j.printer_id === p.printer_id && j.awaiting_outcome);
+    if (needsCare) attention += 1;
+  }
+  const setVal = (id, text) => {
+    const el = $(id);
+    if (el) el.textContent = text;
+  };
+  setVal("kpiPrinting", String(printing));
+  setVal("kpiIdle", String(idle));
+  setVal("kpiAttention", String(attention));
+  $("kpiAttention")?.closest(".today-kpi")?.classList.toggle("hot", attention > 0);
+}
+
+const TODAY_FLEET_WEEKS = 8;
+
+async function loadTodayFleet() {
+  const canvas = $("chartTodayFleet");
+  if (!canvas) return;
+  const data = await api("/api/charts-fleet");
+  const colors = chartColors();
+  const weeks = (data.weeks || []).slice(-TODAY_FLEET_WEEKS);
+  const offset = (data.weeks || []).length - weeks.length;
+  drawChart("todayFleet", "chartTodayFleet", {
+    type: "bar",
+    data: {
+      labels: weeks.map(weekLabel),
+      datasets: (data.printers || []).map((p, i) => ({
+        label: p.name,
+        data: (data.weekly_prints[p.printer_id] || []).slice(offset),
+        backgroundColor: FLEET_COLORS[i % FLEET_COLORS.length],
+        borderRadius: 2,
+        maxBarThickness: 18,
+      })),
+    },
+    options: chartBaseOptions(colors, {
+      animation: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked: true, ticks: { color: colors.muted, font: { size: 10 }, maxRotation: 0, autoSkip: true }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: colors.muted, font: { size: 10 }, precision: 0 }, grid: { color: colors.fill } },
+      },
+    }),
+  });
+  $("todayFleetLegend").innerHTML = (data.printers || [])
+    .map(
+      (p, i) => `<li title="${esc(`${p.total} runs · ${p.fail} failed`)}">
+        <span class="swatch" style="background:${FLEET_COLORS[i % FLEET_COLORS.length]}"></span>
+        <span class="lg-name">${esc(p.name)}</span>
+        <span class="lg-num">${p.success_rate == null ? "—" : `${Number(p.success_rate).toFixed(0)}%`}</span>
+      </li>`
+    )
+    .join("");
+}
+
+const TIMELINE_HOURS = 12;
+const TIMELINE_KIND_LABEL = {
+  printing: "Printing",
+  finished: "Finished, not reported",
+  unreported: "Not reported",
+  success: "Success",
+  fail: "Failed",
+};
+
+function partLabel(filename) {
+  return (filename || "").replace(/\.(stl|obj|3mf|ctb|goo|prz)(?=[_.#\s-]|$).*$/i, "").replace(/_/g, " ").trim();
+}
+
+function clockText(ms) {
+  return new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+async function loadTimeline() {
+  state.timeline = await api(`/api/timeline?hours=${TIMELINE_HOURS}`);
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const box = $("todayTimeline");
+  const body = $("timelineBody");
+  const data = state.timeline;
+  if (!box || !body) return;
+  if (!data) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  const now = Date.now();
+  const fleetById = Object.fromEntries((state.fleet?.printers || []).map((p) => [p.printer_id, p]));
+  const bars = (data.bars || []).map((b) => {
+    const live = fleetById[b.printer_id];
+    let end = Date.parse(b.end);
+    if (b.kind === "printing" && live?.status_kind === "printing" && live.time_left_s != null) {
+      end = now + live.time_left_s * 1000;
+    }
+    return { ...b, startMs: Date.parse(b.start), endMs: Math.max(end, Date.parse(b.start)) };
+  });
+  const hour = 3600 * 1000;
+  const windowStart = now - TIMELINE_HOURS * hour;
+  const visible = bars.filter((b) => b.endMs >= windowStart);
+  const firstStart = visible.length ? Math.min(now - 3 * hour, ...visible.map((b) => b.startMs)) : now - 3 * hour;
+  const from = Math.max(windowStart, Math.floor(firstStart / hour) * hour);
+  const lastEnd = Math.max(now + hour, ...bars.map((b) => b.endMs), now + hour);
+  const to = Math.min(Math.ceil(lastEnd / hour) * hour, now + TIMELINE_HOURS * hour);
+  const span = Math.max(to - from, hour);
+  const pct = (ms) => ((Math.min(Math.max(ms, from), to) - from) / span) * 100;
+  const ticks = [];
+  for (let t = Math.ceil(from / hour) * hour; t <= to; t += hour) ticks.push(t);
+  const step = ticks.length > 10 ? 2 : 1;
+  const axis = ticks
+    .map((t, i) => {
+      const label = i % step === 0 ? `<span>${new Date(t).toLocaleTimeString(undefined, { hour: "numeric" })}</span>` : "";
+      return `<i class="tl-tick" style="left:${pct(t)}%">${label}</i>`;
+    })
+    .join("");
+  const ids = (state.fleet?.printers || []).map((p) => p.printer_id);
+  const rows = ids
+    .map((pid) => {
+      const p = fleetById[pid] || {};
+      const mine = bars.filter((b) => b.printer_id === pid && b.endMs >= from);
+      const printing = mine.find((b) => b.kind === "printing");
+      let free = "Free now";
+      if (p.status_kind === "printing" && printing) free = `Free ${clockText(printing.endMs)}`;
+      else if (p.status_kind === "offline") free = "Offline";
+      else if (mine.some((b) => b.kind === "finished")) free = "Empty the plate";
+      const segs = mine
+        .map((b) => {
+          const left = pct(b.startMs);
+          const width = Math.max(pct(b.endMs) - left, 0.4);
+          const name = partLabel(b.filename) || "Print";
+          const tip = [name, TIMELINE_KIND_LABEL[b.kind]].filter(Boolean).join(" · ");
+          const done = b.kind === "printing" ? Math.min(100, Math.max(0, ((now - Math.max(b.startMs, from)) / Math.max(b.endMs - Math.max(b.startMs, from), 1)) * 100)) : 100;
+          const action = b.kind === "finished" ? ` data-tl-report="${esc(pid)}" role="button" tabindex="0"` : "";
+          return `<div class="tl-bar ${b.kind}" style="left:${left}%;width:${width}%;--done:${done}%" title="${esc(tip)}"${action}><span>${esc(name)}</span></div>`;
+        })
+        .join("");
+      return `<div class="tl-row"><div class="tl-name"><strong>${esc(p.short_name || pid)}</strong><span class="tl-free ${p.status_kind || ""}">${esc(free)}</span></div><div class="tl-track">${segs}</div></div>`;
+    })
+    .join("");
+  body.innerHTML = `<div class="tl-row tl-axis"><div class="tl-name"></div><div class="tl-track">${axis}</div></div>${rows}<div class="tl-now" style="--now:${pct(now) / 100}"><span>Now</span></div>`;
+  if ($("timelineSub")) $("timelineSub").textContent = `Since ${clockText(from)}, and when each printer frees up`;
+  body.querySelectorAll("[data-tl-report]").forEach((el) => el.addEventListener("click", () => openReport(el.dataset.tlReport)));
 }
 
 function profileCue(pr, shared = new Set()) {
@@ -965,7 +1189,7 @@ function shapeBadges(tags, title = "") {
     .join("");
 }
 
-function tableFromRows(table, rows, { actions = false, printer = false } = {}) {
+function tableFromRows(table, rows, { actions = false, printer = false, slice = false } = {}) {
   const head = table.querySelector("thead");
   const body = table.querySelector("tbody");
   if (!rows.length) {
@@ -975,7 +1199,9 @@ function tableFromRows(table, rows, { actions = false, printer = false } = {}) {
   }
   head.innerHTML = `<tr>
     <th>ID</th><th>When</th>${printer ? "<th>Printer</th>" : ""}<th>Status</th><th>Part</th><th>Resin</th><th>Layer height</th>
-    <th>Layer exposure</th><th>Bottom exposure</th><th>Temp</th><th>UV</th><th>Layers</th><th>Time</th>
+    <th>Layer exposure</th><th>Bottom exposure</th>${
+      slice ? "<th>Bottom layers</th><th>Transition layers</th><th>Rest after retract</th>" : ""
+    }<th>Temp</th><th>UV</th><th>Layers</th><th>Time</th>
     <th>File</th>${actions ? `<th class="row-actions"></th>` : ""}
   </tr>`;
   body.innerHTML = rows
@@ -1009,6 +1235,11 @@ function tableFromRows(table, rows, { actions = false, printer = false } = {}) {
         <td>${esc(r.layer)}</td>
         <td>${esc(r.layer_exp)}</td>
         <td>${esc(r.bottom_exp)}</td>
+        ${
+          slice
+            ? `<td>${esc(r.bottom_layers ?? "—")}</td><td>${esc(r.transition_layers ?? "—")}</td><td>${esc(r.rest_after ?? "—")}</td>`
+            : ""
+        }
         <td>${esc(r.temp)}</td>
         <td>${esc(r.uv)}</td>
         <td>${esc(r.layers)}</td>
@@ -1047,6 +1278,7 @@ async function loadCharts() {
   $("ckTempKpi").hidden = !k.measured_temp_runs;
   $("ckTemp").textContent = k.avg_vat_c != null ? `${k.avg_vat_c.toFixed(0)}°` : "—";
   $("insights").textContent = data.insights.map((l) => `• ${l}`).join("\n\n");
+  renderDiagnostics(data.diagnostics || []);
 
   const colors = chartColors();
   renderTimelineChart(data.timeline, colors);
@@ -1403,7 +1635,39 @@ function renderFailureChart(failures, colors) {
   });
 }
 
-const FLEET_COLORS = ["#007aff", "#ff9500", "#34c759", "#af52de", "#5ac8fa", "#ff2d55"];
+function renderDiagnostics(diagnostics) {
+  const root = $("diagnosticsList");
+  const empty = $("diagnosticsEmpty");
+  if (!root || !empty) return;
+  const rows = diagnostics || [];
+  empty.hidden = rows.length > 0;
+  root.hidden = !rows.length;
+  if (!rows.length) {
+    root.innerHTML = "";
+    return;
+  }
+  root.innerHTML = rows
+    .map((d) => {
+      const evidence = (d.evidence || [])
+        .map((e) => `<li>${esc(e)}</li>`)
+        .join("");
+      const actions = (d.actions || [])
+        .map((a) => `<li>${esc(a)}</li>`)
+        .join("");
+      return `<article class="diag-card" data-issue="${esc(d.issue)}">
+        <header class="diag-head">
+          <div class="diag-title">${esc(d.label)}</div>
+          <div class="diag-count">${d.n} fail${d.n === 1 ? "" : "s"} · ${Number(d.share_pct).toFixed(0)}% of fails</div>
+        </header>
+        <div class="diag-cause"><span class="diag-kicker">Why</span>${esc(d.cause)}</div>
+        ${evidence ? `<div class="diag-block"><span class="diag-kicker">In your log</span><ul>${evidence}</ul></div>` : ""}
+        <div class="diag-block diag-actions"><span class="diag-kicker">What to do</span><ul>${actions}</ul></div>
+      </article>`;
+    })
+    .join("");
+}
+
+const FLEET_COLORS = ["#6e40c9", "#ff9500", "#34c759", "#64d2ff", "#ffd60a", "#ff2d55"];
 
 async function loadFleetCharts(colors = chartColors()) {
   const data = await api("/api/charts-fleet");
@@ -1547,7 +1811,7 @@ function renderHistory() {
     $("histTable").querySelector("tbody").innerHTML = `<tr><td>No prints match these filters.</td></tr>`;
     return;
   }
-  tableFromRows($("histTable"), rows, { actions: true, printer: true });
+  tableFromRows($("histTable"), rows, { actions: true, printer: true, slice: true });
 }
 
 function bindHistFilters() {
@@ -2213,6 +2477,7 @@ async function boot() {
   document.querySelectorAll(".nav button").forEach((b) => {
     b.addEventListener("click", () => setPanel(b.dataset.panel));
   });
+  document.querySelectorAll("[data-goto]").forEach((b) => b.addEventListener("click", () => setPanel(b.dataset.goto)));
   $("btnRefresh").addEventListener("click", async () => {
     await loadFleet(true);
     await loadToday();
@@ -2245,6 +2510,11 @@ async function boot() {
   $("reportOk").addEventListener("click", () => submitReport("success"));
   $("reportFail").addEventListener("click", () => submitReport("fail"));
   $("reportCancel").addEventListener("click", closeReport);
+  $("postClose")?.addEventListener("click", closePostProcess);
+  $("postModal")?.addEventListener("click", (e) => {
+    if (e.target.id === "postModal") closePostProcess();
+  });
+  $("postResin")?.addEventListener("change", (e) => renderPostSop(e.target.value));
   $("btnRecommend").addEventListener("click", () => runRecommend());
   $("calPrinter").addEventListener("change", () => {
     const rid = vatResinFor($("calPrinter").value);
@@ -2285,6 +2555,7 @@ async function boot() {
     api("/api/geometries"),
   ]);
   state.resins = resins;
+  state.post = await api("/api/post-process").catch(() => null);
   state.printers = printers;
   state.meta = meta;
   fillSelect($("resinSelect"), resins, "id", "name", resins[0]?.id);
